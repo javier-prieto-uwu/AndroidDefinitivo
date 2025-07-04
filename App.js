@@ -30,7 +30,7 @@ const MyDarkTheme = {
   },
 };
 
-function MainTabs() {
+function MainTabs({ setIsLoggedIn }) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -78,11 +78,12 @@ function MainTabs() {
       />
       <Tab.Screen 
         name="Menú"
-        component={MenuScreen} 
         options={{
           tabBarIcon: ({ color }) => <FontAwesome name="bars" size={28} color={color} />,
         }}
-      />
+      >
+        {props => <MenuScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }
@@ -120,7 +121,9 @@ export default function App() {
             </Stack.Screen>
           </>
         ) : (
-          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="MainTabs">
+            {props => <MainTabs {...props} setIsLoggedIn={setIsLoggedIn} />}
+          </Stack.Screen>
         )}
       </Stack.Navigator>
     </NavigationContainer>

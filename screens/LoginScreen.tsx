@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '../api/firebase';
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 interface LoginScreenProps {
   navigation: any;
@@ -44,16 +44,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
       Alert.alert('Error', msg);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      navigation.navigate('MainApp');
-    } catch (error) {
-      Alert.alert('Error de inicio de sesión', 'Error al conectar con Google');
     }
   };
 
@@ -148,21 +138,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
             ) : (
               <Text style={styles.loginButtonText}>Iniciar sesión</Text>
             )}
-          </TouchableOpacity>
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>o</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.googleButton, loading && styles.googleButtonDisabled]}
-            onPress={handleGoogleLogin}
-            disabled={loading}
-          >
-            <Text style={styles.googleIcon}>uwu</Text>
-            <Text style={styles.googleButtonText}>Continuar con Google</Text>
           </TouchableOpacity>
         </View>
 
@@ -276,43 +251,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#333',
-  },
-  dividerText: {
-    color: '#a0a0a0',
-    marginHorizontal: 16,
-    fontSize: 14,
-  },
-  googleButton: {
-    backgroundColor: '#181818',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  googleButtonDisabled: {
-    opacity: 0.6,
-  },
-  googleIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  googleButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -329,4 +267,5 @@ const styles = StyleSheet.create({
   },
 });
 
+export default LoginScreen; 
 export default LoginScreen; 

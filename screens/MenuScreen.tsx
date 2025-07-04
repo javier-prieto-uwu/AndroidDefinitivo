@@ -26,7 +26,7 @@ const categoriasEjemplo = [
   { nombre: 'Aros de llavero', cantidad: 0, color: '#9c27b0' }
 ];
 
-const MenuScreen: React.FC = () => {
+const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolean) => void }) => {
   const navigation = useNavigation();
   
   // Estado para estadísticas y categorías
@@ -81,8 +81,8 @@ const MenuScreen: React.FC = () => {
           onPress: async () => {
             try {
               await signOut(auth);
-              // Navega al stack principal (fuera del TabNavigator)
-              navigation.getParent()?.navigate('Login' as never);
+              // Cambiar el estado de login para regresar a la pantalla de bienvenida
+              setIsLoggedIn(false);
             } catch (error) {
               Alert.alert('Error', 'No se pudo cerrar sesión');
             }
@@ -100,16 +100,16 @@ const MenuScreen: React.FC = () => {
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'add':
-        navigation.navigate('AddMaterial' as never);
+        navigation.navigate('Agregar' as never);
         break;
       case 'inventory':
-        navigation.navigate('Inventory' as never);
+        navigation.navigate('Inventario' as never);
         break;
       case 'calculator':
-        navigation.navigate('CostCalculator' as never);
+        navigation.navigate('Costos' as never);
         break;
       case 'history':
-        navigation.navigate('Print' as never);
+        navigation.navigate('Historial' as never);
         break;
     }
   };
