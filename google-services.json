@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "854980496990",
+    "project_id": "dmaterial-84cb4",
+    "storage_bucket": "dmaterial-84cb4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:854980496990:android:c83bc57721246970212ecf",
+        "android_client_info": {
+          "package_name": "com.dmaterial.manager"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "854980496990-8qe9bocufprtta66rh7nr64n987fmr7q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAu9KCmPEQBd1RUB13TXdtfT02N6RuIuIE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "854980496990-8qe9bocufprtta66rh7nr64n987fmr7q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
