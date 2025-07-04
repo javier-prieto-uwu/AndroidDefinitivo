@@ -416,18 +416,7 @@ const styles = StyleSheet.create({
     color: '#a0a0a0',
     lineHeight: 20,
   },
-  testButton: {
-    backgroundColor: '#00e676',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  testButtonText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+
   materialInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
