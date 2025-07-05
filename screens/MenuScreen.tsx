@@ -5,6 +5,8 @@ import { useFocusEffect } from '@react-navigation/native'
 import { auth } from '../api/firebase'
 import { signOut } from 'firebase/auth'
 import { getDocs, collection, getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
+import { PieChart } from 'react-native-chart-kit';
+import { Dimensions } from 'react-native';
 
 // Simulación de datos locales para estadísticas y categorías
 const estadisticasEjemplo = {
@@ -32,6 +34,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
   // Estado para estadísticas y categorías
   const [estadisticas, setEstadisticas] = useState(estadisticasEjemplo);
   const [categoriasMateriales, setCategoriasMateriales] = useState(categoriasEjemplo);
+  const [materiales, setMateriales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Datos del usuario autenticado
@@ -194,11 +197,12 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
       const unsubscribeMateriales = onSnapshot(
         collection(db, 'usuarios', user.uid, 'materiales'),
         (snapshot) => {
-          const materiales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const materialesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setMateriales(materialesData);
           // Obtener cálculos actuales para recalcular estadísticas
           getDocs(collection(db, 'usuarios', user.uid, 'calculos')).then(snapshotCalc => {
             const calculos = snapshotCalc.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            calcularEstadisticas(materiales, calculos);
+            calcularEstadisticas(materialesData, calculos);
           });
         },
         (error) => {
@@ -234,6 +238,21 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
       };
     }, [user])
   );
+
+  // Calcular datos reales para la gráfica circular de tipos de filamento
+  const tiposFilamentoContador: Record<string, number> = {};
+  materiales.filter(m => m.categoria === 'Filamento').forEach(m => {
+    const tipo = m.tipo || 'Otro';
+    tiposFilamentoContador[tipo] = (tiposFilamentoContador[tipo] || 0) + 1;
+  });
+  const colores = ['#00e676', '#ff9800', '#2196f3', '#9c27b0', '#b0b0b0', '#e53935', '#43a047', '#1e88e5'];
+  const pieData = Object.entries(tiposFilamentoContador).map(([tipo, cantidad], i) => ({
+    name: tipo,
+    population: cantidad,
+    color: colores[i % colores.length],
+    legendFontColor: '#fff',
+    legendFontSize: 13,
+  }));
 
   return (
     <ScrollView style={styles.container}>
@@ -276,29 +295,84 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{estadisticas.proyectosCompletados}</Text>
+            <Text style={styles.statNumber}>{estadisticas.proyectosCompletados.toLocaleString('es-MX')}</Text>
             <Text style={styles.statLabel}>Proyectos completados</Text>
             <Text style={styles.statIcon}>✅</Text>
           </View>
           
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{estadisticas.tiempoImpresion.toFixed(1)}h</Text>
+            <Text style={styles.statNumber}>{Number(estadisticas.tiempoImpresion).toLocaleString('es-MX', { maximumFractionDigits: 1 })}h</Text>
             <Text style={styles.statLabel}>Tiempo total de impresión</Text>
             <Text style={styles.statIcon}>⏱️</Text>
           </View>
           
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{estadisticas.tiempoPromedioProyecto}h</Text>
+            <Text style={styles.statNumber}>{Number(estadisticas.tiempoPromedioProyecto).toLocaleString('es-MX', { maximumFractionDigits: 1 })}h</Text>
             <Text style={styles.statLabel}>Tiempo promedio por proyecto</Text>
             <Text style={styles.statIcon}>📊</Text>
           </View>
           
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{estadisticas.materialesDisponibles}</Text>
+            <Text style={styles.statNumber}>{estadisticas.materialesDisponibles.toLocaleString('es-MX')}</Text>
             <Text style={styles.statLabel}>Materiales disponibles</Text>
             <Text style={styles.statIcon}>📦</Text>
           </View>
         </View>
+        {/* Gráfica circular de tipos de filamento */}
+        <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
+          <Text style={[styles.sectionTitle, { textAlign: 'center', marginBottom: 8 }]}>Tipos de Filamento</Text>
+          <PieChart
+            data={pieData}
+            width={Dimensions.get('window').width - 64}
+            height={180}
+            chartConfig={{
+              color: (opacity = 1) => `rgba(0, 230, 118, ${opacity})`,
+              labelColor: () => '#fff',
+              backgroundColor: '#181818',
+              backgroundGradientFrom: '#181818',
+              backgroundGradientTo: '#181818',
+              decimalPlaces: 0,
+            }}
+            accessor={'population'}
+            backgroundColor={'transparent'}
+            paddingLeft={"0"}
+            absolute
+          />
+        </View>
+        {/* Barra segmentada de tipos de filamento */}
+        {pieData.length > 0 && (
+          <View style={{ width: '100%' }}>
+            <View style={{ flexDirection: 'row', height: 24, width: '100%', backgroundColor: '#222', borderRadius: 12, overflow: 'hidden', marginTop: 12, marginBottom: 8 }}>
+              {pieData.map((segment, i) => (
+                <View
+                  key={segment.name}
+                  style={{
+                    flex: segment.population,
+                    backgroundColor: segment.color,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                  }}
+                >
+                  {/* Si el segmento es suficientemente grande, muestra el porcentaje */}
+                  {segment.population / pieData.reduce((a, b) => a + b.population, 0) > 0.12 && (
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>
+                      {Math.round((segment.population / pieData.reduce((a, b) => a + b.population, 0)) * 100)}%
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8, justifyContent: 'center' }}>
+              {pieData.map((segment, i) => (
+                <View key={segment.name} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12, marginBottom: 4 }}>
+                  <View style={{ width: 14, height: 14, backgroundColor: segment.color, borderRadius: 3, marginRight: 4 }} />
+                  <Text style={{ color: '#fff', fontSize: 12 }}>{segment.name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Consumo de materiales */}
@@ -364,25 +438,29 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         <View style={styles.financialGrid}>
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>Costo total materiales</Text>
-            <Text style={styles.financialAmount}>${estadisticas.costoTotalMateriales.toFixed(2)}</Text>
+            <Text style={styles.financialAmount}>
+              {Number(estadisticas.costoTotalMateriales).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+            </Text>
             <Text style={styles.financialPeriod}>Inventario actual</Text>
           </View>
           
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>Valor total proyectos</Text>
-            <Text style={[styles.financialAmount, { color: '#00e676' }]}>${estadisticas.ganancias.toFixed(2)}</Text>
+            <Text style={[styles.financialAmount, { color: '#00e676' }]}> 
+              {Number(estadisticas.ganancias).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+            </Text>
             <Text style={styles.financialPeriod}>Todos los proyectos</Text>
           </View>
           
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>Filamento consumido</Text>
-            <Text style={styles.financialAmount}>{estadisticas.filamentoConsumido}g</Text>
+            <Text style={styles.financialAmount}>{Number(estadisticas.filamentoConsumido).toLocaleString('es-MX')}g</Text>
             <Text style={styles.financialPeriod}>Total utilizado</Text>
           </View>
           
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>Eficiencia</Text>
-            <Text style={[styles.financialAmount, { color: '#ff9800' }]}>{estadisticas.eficiencia}%</Text>
+            <Text style={[styles.financialAmount, { color: '#ff9800' }]}>{Number(estadisticas.eficiencia).toLocaleString('es-MX')}%</Text>
             <Text style={styles.financialPeriod}>Proyectos/hora</Text>
           </View>
         </View>

@@ -3,6 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View, TouchableOpacity,
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { auth, app } from '../api/firebase';
 import { getDocs, collection, getFirestore, query, orderBy, limit } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -17,6 +18,7 @@ const HomeScreen: React.FC = () => {
     ultimaCotizacion: 0
   });
   const [loading, setLoading] = useState(true);
+  const [materialExpandido, setMaterialExpandido] = useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -36,7 +38,7 @@ const HomeScreen: React.FC = () => {
         }
         try {
           const snapshot = await getDocs(collection(db, 'usuarios', user.uid, 'materiales'));
-          const mats = snapshot.docs.map(doc => doc.data());
+          const mats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           // Obtener la última cotización de calculadora
           let ultimaCotizacion = 0;
           try {
@@ -50,8 +52,8 @@ const HomeScreen: React.FC = () => {
           setMateriales(mats);
           setEstadisticas({
             totalMateriales: mats.length,
-            valorTotal: mats.reduce((sum, mat) => sum + (parseFloat(mat.precio) || 0), 0),
-            stockTotal: mats.reduce((sum, mat) => sum + (parseFloat(mat.cantidad) || 0), 0),
+            valorTotal: mats.reduce((sum, mat: any) => sum + (parseFloat(mat.precio || 0) * parseFloat(mat.cantidad || 0)), 0),
+            stockTotal: mats.reduce((sum, mat: any) => sum + (parseFloat(mat.cantidad) || 0), 0),
             ultimaCotizacion
           });
         } catch (error) {
@@ -87,7 +89,14 @@ const HomeScreen: React.FC = () => {
         </View>
         
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>${estadisticas.valorTotal.toFixed(0)}</Text>
+          <Text
+            style={[styles.statNumber, { fontSize: 16, flexWrap: 'wrap', textAlign: 'center', lineHeight: 18 }]}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
+            {estadisticas.valorTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+          </Text>
           <Text style={styles.statLabel}>Valor total</Text>
           <Text style={styles.statIcon}>💰</Text>
         </View>
@@ -114,7 +123,7 @@ const HomeScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Materiales disponibles</Text>
           <TouchableOpacity 
             style={styles.addButton}
-            onPress={() => navigation.navigate('AddMaterial' as never)}
+            onPress={() => navigation.navigate('Agregar' as never)}
           >
             <Text style={styles.addButtonText}>+ Agregar</Text>
           </TouchableOpacity>
@@ -136,8 +145,8 @@ const HomeScreen: React.FC = () => {
           }, {} as { [cat: string]: any[] })).map(([cat, mats]) => (
             <View key={cat} style={{ marginBottom: 18 }}>
               <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 17, marginBottom: 6 }}>{cat}</Text>
-              {(mats as any[]).map((material, idx) => (
-                <View key={idx} style={styles.materialItem}>
+              {(mats as any[]).map((material) => (
+                <View key={material.id} style={styles.materialItem}>
                   {/* Contenedor de imagen */}
                   <View style={styles.imageContainer}>
                     <Image 

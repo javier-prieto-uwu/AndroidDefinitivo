@@ -13,7 +13,9 @@
       "backgroundColor": "#0d0d0d"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "statusBarStyle": "light",
+      "statusBarHidden": false
     },
     "android": {
       "package": "com.dmaterial.manager",
@@ -21,7 +23,14 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0d0d0d"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "statusBarStyle": "light",
+      "statusBarHidden": false,
+      "navigationBarColor": "#0d0d0d",
+      "statusBarColor": "#0d0d0d",
+      "navigationBarHidden": true,
+      "immersive": true,
+      "systemUiVisibility": "immersive"
     },
     "web": {
       "favicon": "./assets/favicon.png"

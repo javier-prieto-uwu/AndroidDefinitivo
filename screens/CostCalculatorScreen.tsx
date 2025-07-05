@@ -1,7 +1,7 @@
 import { Picker } from '@react-native-picker/picker';
 import React, { useState, useEffect } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal, Platform, ActivityIndicator } from 'react-native';
-import { getFirestore, collection, getDocs, addDoc } from 'firebase/firestore';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal, Platform, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+import { getFirestore, collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { auth, app } from '../api/firebase';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -295,6 +295,26 @@ const CostCalculatorScreen: React.FC = () => {
         costoTotal: getTotal(),
       };
       await addDoc(collection(db, 'usuarios', user.uid, 'calculos'), nuevoCalculo);
+      // Restar los gramos utilizados del material seleccionado
+      if (calculo.materialSeleccionado.id && calculo.filamento.gramosUtilizados) {
+        const materialId = calculo.materialSeleccionado.id;
+        const gramosUsados = parseFloat(calculo.filamento.gramosUtilizados);
+        if (!isNaN(gramosUsados) && gramosUsados > 0) {
+          // Buscar el material actual en materialesGuardados
+          const mat = materialesGuardados.find((m: any) => m.id === materialId);
+          if (mat && (typeof mat.cantidadRestante !== 'undefined' || typeof mat.cantidad !== 'undefined')) {
+            let actual = parseFloat(mat.cantidadRestante ?? mat.cantidad);
+            if (!isNaN(actual)) {
+              let nuevaCantidadRestante = actual - gramosUsados;
+              if (nuevaCantidadRestante < 0) nuevaCantidadRestante = 0;
+              await updateDoc(
+                doc(db, 'usuarios', user.uid, 'materiales', materialId),
+                { cantidadRestante: nuevaCantidadRestante.toString() }
+              );
+            }
+          }
+        }
+      }
       showCustomAlert('✅ ¡Cálculo guardado!', `El cálculo "${calculo.nombre}" se guardó exitosamente.\n\n💵 Total: $${getTotal()} MXN\n\nPuedes consultar este cálculo en el historial de impresiones.`, 'success');
       // Limpiar el formulario después de guardar
       setCalculo({
@@ -373,636 +393,638 @@ const CostCalculatorScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container}>
 
-      {/* Encabezado */}
-      <View style={styles.header}>
-        {/* Encabezado sin nombre de usuario */}
-      </View>
+        {/* Encabezado */}
+        <View style={styles.header}>
+          {/* Encabezado sin nombre de usuario */}
+        </View>
 
-      {/* Campo de nombre del cálculo */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>NOMBRE DEL CÁLCULO</Text>
-        <Text style={styles.label}>Nombre del proyecto o cálculo <Text style={styles.requiredText}>*</Text></Text>
-        <TextInput
-          style={[styles.input, !calculo.nombre.trim() && styles.inputRequired]}
-          value={calculo.nombre}
-          onChangeText={(text) => setCalculo(prev => ({ ...prev, nombre: text }))}
-          placeholder="Ej: Llavero personalizado, Pieza de repuesto, etc."
-          placeholderTextColor="#666"
-        />
-        {!calculo.nombre.trim() && (
-          <Text style={styles.requiredMessage}>El nombre del proyecto es obligatorio</Text>
-        )}
-      </View>
-
-      {/* Información del Material Seleccionado */}
-      {calculo.materialSeleccionado.id && (
+        {/* Campo de nombre del cálculo */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>MATERIAL SELECCIONADO</Text>
-          <View style={styles.materialInfoContainer}>
-            <View style={{
-              width: 20,
-              height: 20,
-              borderRadius: 10,
-              backgroundColor: calculo.materialSeleccionado.color || '#00e676',
-              borderWidth: 2,
-              borderColor: '#333',
-              marginRight: 12,
-            }} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.materialName}>{calculo.materialSeleccionado.nombre}</Text>
-              <Text style={styles.materialDetails}>
-                {calculo.materialSeleccionado.tipo} - {calculo.materialSeleccionado.subtipo}
-              </Text>
-              <Text style={styles.materialDetails}>
-                Color: {calculo.materialSeleccionado.color || 'No especificado'}
-              </Text>
+          <Text style={styles.sectionTitle}>NOMBRE DEL CÁLCULO</Text>
+          <Text style={styles.label}>Nombre del proyecto o cálculo <Text style={styles.requiredText}>*</Text></Text>
+          <TextInput
+            style={[styles.input, !calculo.nombre.trim() && styles.inputRequired]}
+            value={calculo.nombre}
+            onChangeText={(text) => setCalculo(prev => ({ ...prev, nombre: text }))}
+            placeholder="Ej: Llavero personalizado, Pieza de repuesto, etc."
+            placeholderTextColor="#666"
+          />
+          {!calculo.nombre.trim() && (
+            <Text style={styles.requiredMessage}>El nombre del proyecto es obligatorio</Text>
+          )}
+        </View>
+
+        {/* Información del Material Seleccionado */}
+        {calculo.materialSeleccionado.id && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>MATERIAL SELECCIONADO</Text>
+            <View style={styles.materialInfoContainer}>
+              <View style={{
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                backgroundColor: calculo.materialSeleccionado.color || '#00e676',
+                borderWidth: 2,
+                borderColor: '#333',
+                marginRight: 12,
+              }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.materialName}>{calculo.materialSeleccionado.nombre}</Text>
+                <Text style={styles.materialDetails}>
+                  {calculo.materialSeleccionado.tipo} - {calculo.materialSeleccionado.subtipo}
+                </Text>
+                <Text style={styles.materialDetails}>
+                  Color: {calculo.materialSeleccionado.color || 'No especificado'}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {/* Sección de Detalles de Impresión */}
-      <View style={styles.section}>
-        <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
-          <Text style={styles.sectionTitle}>DETALLES DE IMPRESIÓN</Text>
-          <TouchableOpacity
-            style={styles.secondaryToggleBtn}
-            onPress={() => setMostrarDetallesImpresion(!mostrarDetallesImpresion)}
-          >
-            <Text style={styles.secondaryToggleText}>{mostrarDetallesImpresion ? 'Ocultar' : 'Mostrar'}</Text>
-          </TouchableOpacity>
+        {/* Sección de Detalles de Impresión */}
+        <View style={styles.section}>
+          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
+            <Text style={styles.sectionTitle}>DETALLES DE IMPRESIÓN</Text>
+            <TouchableOpacity
+              style={styles.secondaryToggleBtn}
+              onPress={() => setMostrarDetallesImpresion(!mostrarDetallesImpresion)}
+            >
+              <Text style={styles.secondaryToggleText}>{mostrarDetallesImpresion ? 'Ocultar' : 'Mostrar'}</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {mostrarDetallesImpresion && (
+            <>
+              <Text style={styles.label}>Porcentaje de relleno (%)</Text>
+              <TextInput
+                style={styles.input}
+                value={calculo.detallesImpresion.relleno}
+                onChangeText={(text) => handleDetallesImpresionChange('relleno', text)}
+                placeholder="Ej: 20"
+                keyboardType="numeric"
+              />
+              
+              <Text style={styles.label}>Tiempo de impresión (horas)</Text>
+              <TextInput
+                style={styles.input}
+                value={calculo.detallesImpresion.tiempoImpresion}
+                onChangeText={(text) => handleDetallesImpresionChange('tiempoImpresion', text)}
+                placeholder="Ej: 3.5"
+                keyboardType="numeric"
+              />
+              
+              <Text style={styles.label}>Temperatura (°C)</Text>
+              <TextInput
+                style={styles.input}
+                value={calculo.detallesImpresion.temperatura}
+                onChangeText={(text) => handleDetallesImpresionChange('temperatura', text)}
+                placeholder="Ej: 200"
+                keyboardType="numeric"
+              />
+              
+              <Text style={styles.label}>Velocidad de impresión (mm/s)</Text>
+              <TextInput
+                style={styles.input}
+                value={calculo.detallesImpresion.velocidad}
+                onChangeText={(text) => handleDetallesImpresionChange('velocidad', text)}
+                placeholder="Ej: 60"
+                keyboardType="numeric"
+              />
+              
+              <Text style={styles.label}>Altura de capa (mm)</Text>
+              <TextInput
+                style={styles.input}
+                value={calculo.detallesImpresion.alturaCapa}
+                onChangeText={(text) => handleDetallesImpresionChange('alturaCapa', text)}
+                placeholder="Ej: 0.2"
+                keyboardType="numeric"
+              />
+              
+              <Text style={styles.label}>Notas adicionales</Text>
+              <TextInput
+                style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                value={calculo.detallesImpresion.notas}
+                onChangeText={(text) => handleDetallesImpresionChange('notas', text)}
+                placeholder="Ej: Soporte necesario, configuración especial, etc."
+                placeholderTextColor="#666"
+                multiline
+              />
+            </>
+          )}
         </View>
-        
-        {mostrarDetallesImpresion && (
-          <>
-            <Text style={styles.label}>Porcentaje de relleno (%)</Text>
+
+        {/* Sección de Filamento */}
+        <View style={styles.section}>
+          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
+
+            {/* cuadro general de calculo de filamento */}
+            <Text style={styles.sectionTitle}>CÁLCULO DE FILAMENTO</Text>
+
+            {/* Boton de opciones avanzadas al ser pulsado se activa la funcion de mostrar avanzado*/}
+            <TouchableOpacity
+            // al precionarse pone el valor contrario del de precionar avanzado.
+              style={styles.advancedToggleBtn} onPress={() => setMostrarAvanzado(!mostrarAvanzado)}>
+              <Text style={styles.advancedToggleText}>{mostrarAvanzado ? 'Ocultar' : 'Avanzado'}</Text>
+            </TouchableOpacity>
+
+
+          </View>
+          <Text style={styles.label}>Seleccionar material guardado</Text>
+
+          {/* Selector de material guardado como pastillas en 2 columnas, agrupado por tipo */}
+          <View style={{ flexDirection: 'column', flexWrap: 'wrap', marginBottom: 8 }}>
+            {loadingMateriales ? (
+              <ActivityIndicator size="small" color="#00e676" style={{ marginVertical: 10 }} />
+            ) : errorMateriales ? (
+              <Text style={{ color: 'red', textAlign: 'center', marginVertical: 10 }}>{errorMateriales}</Text>
+            ) : materialesGuardados.length === 0 ? (
+              <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 10 }}>No hay materiales guardados.</Text>
+            ) : (
+              (() => {
+                // Agrupar materiales por tipo
+                const matsPorTipo: { [tipo: string]: any[] } = {};
+                materialesGuardados.forEach(mat => {
+                  const tipo = mat.tipo || 'Sin tipo';
+                  if (!matsPorTipo[tipo]) matsPorTipo[tipo] = [];
+                  matsPorTipo[tipo].push(mat);
+                });
+                return Object.entries(matsPorTipo).map(([tipo, mats], tipoIdx) => (
+                  <View key={tipo} style={{ marginBottom: 8 }}>
+                    <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 15, marginBottom: 4 }}>{tipo}</Text>
+                    {(() => {
+                      const filas = [];
+                      for (let i = 0; i < mats.length; i += 2) {
+                        filas.push(mats.slice(i, i + 2));
+                      }
+                      return filas.map((fila, idx) => (
+                        <View key={idx} style={{ flexDirection: 'row', marginBottom: 4, justifyContent: 'center', alignSelf: 'center', maxWidth: 340, width: '100%' }}>
+                          {fila.map((mat) => (
+                            <TouchableOpacity
+                              key={mat.id}
+                              style={{
+                                flex: 1,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: materialSeleccionado === mat.id ? '#00e676' : '#222',
+                                borderColor: materialSeleccionado === mat.id ? '#00e676' : '#333',
+                                borderWidth: 2,
+                                borderRadius: 16,
+                                paddingVertical: 4,
+                                paddingHorizontal: 8,
+                                marginHorizontal: 4,
+                                minHeight: 40,
+                                maxWidth: '48%',
+                              }}
+                              onPress={() => handleSeleccionMaterial(mat.id)}
+                            >
+                              <View style={{
+                                width: 14,
+                                height: 14,
+                                borderRadius: 7,
+                                backgroundColor: mat.color || '#00e676',
+                                borderWidth: 1,
+                                borderColor: '#333',
+                                marginRight: 6,
+                              }} />
+                              <View style={{ flexShrink: 1 }}>
+                                <Text style={{
+                                  color: materialSeleccionado === mat.id ? '#222' : '#fff',
+                                  fontWeight: materialSeleccionado === mat.id ? 'bold' : 'normal',
+                                  fontSize: 12,
+                                  flexWrap: 'wrap',
+                                }} numberOfLines={1} ellipsizeMode="tail">{mat.nombre}</Text>
+                                <Text style={{ color: '#a0a0a0', fontSize: 10 }} numberOfLines={1} ellipsizeMode="tail">{mat.subtipo}</Text>
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                          {fila.length === 1 && <View style={{ flex: 1 }} />}
+                        </View>
+                      ));
+                    })()}
+                  </View>
+                ));
+              })()
+            )}
+            {!cargandoMateriales && !errorMateriales && materialesGuardados.length > 5 && !verMasMateriales && (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#181818',
+                  borderColor: '#00e676',
+                  borderWidth: 2,
+                  borderRadius: 20,
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  marginRight: 8,
+                  marginBottom: 8,
+                  marginTop: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  alignSelf: 'center',
+                }}
+                onPress={() => setVerMasMateriales(true)}
+              >
+                <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 14 }}>Ver más...</Text>
+              </TouchableOpacity>
+            )}
+            {!cargandoMateriales && !errorMateriales && materialesGuardados.length > 5 && verMasMateriales && (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#181818',
+                  borderColor: '#e53935',
+                  borderWidth: 2,
+                  borderRadius: 20,
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  marginRight: 8,
+                  marginBottom: 8,
+                  marginTop: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  alignSelf: 'center',
+                }}
+                onPress={() => setVerMasMateriales(false)}
+              >
+                <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 14 }}>Ver menos...</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Selector de subtipo de filamento */}
+          {calculo.filamento.tipo && (
+            <>
+              <Text style={styles.label}>Subtipo de filamento</Text>
+              <View style={styles.pastillasContainer}>
+                {(subtiposFilamento.find(t => t.tipo === calculo.filamento.tipo)?.subtipos || []).map((sub, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.pastilla,
+                      calculo.filamento.subtipo === sub && styles.pastillaSeleccionada
+                    ]}
+                    onPress={() => handleFilamentoChange('subtipo', sub)}
+                  >
+                    <Text style={[
+                      styles.pastillaTexto,
+                      calculo.filamento.subtipo === sub && styles.pastillaTextoSeleccionada
+                    ]}>{sub}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          <Text style={styles.label}>Tipo de filamento</Text>
+          <View style={styles.pastillasContainer}>
+            {tiposFilamento.map((tipo, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.pastilla,
+                  calculo.filamento.tipo === tipo && styles.pastillaSeleccionada
+                ]}
+                onPress={() => handleFilamentoChange('tipo', tipo)}
+              >
+                <Text style={[
+                  styles.pastillaTexto,
+                  calculo.filamento.tipo === tipo && styles.pastillaTextoSeleccionada
+                ]}>{tipo}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          
+          <Text style={styles.label}>Precio de la bobina (MXN)</Text>
+          <TextInput
+            style={styles.input}
+            value={calculo.filamento.precioBobina}
+            onChangeText={(text) => handleFilamentoChange('precioBobina', text)}
+            onBlur={calcularCostoFilamento}
+            placeholder="Ej: 450.00"
+            keyboardType="numeric"
+          />
+
+          <Text style={styles.label}>Peso de la bobina (gramos)</Text>
+          <TextInput
+            style={styles.input}
+            value={calculo.filamento.pesoBobina}
+            onChangeText={(text) => handleFilamentoChange('pesoBobina', text)}
+            onBlur={calcularCostoFilamento}
+            placeholder="Ej: 1000"
+            keyboardType="numeric"
+          />
+
+          <Text style={styles.label}>Gramos utilizados</Text>
+          <TextInput
+            style={styles.input}
+            value={calculo.filamento.gramosUtilizados}
+            onChangeText={(text) => handleFilamentoChange('gramosUtilizados', text)}
+            onBlur={calcularCostoFilamento}
+            placeholder="Ej: 40"
+            keyboardType="numeric"
+          />
+          
+          <View style={styles.resultContainer}>
+            <Text style={styles.resultLabel}>Costo total del filamento:</Text>
+            <Text style={styles.resultValue}>${calculo.filamento.costoFilamento} MXN</Text>
+            <Text style={styles.detailText}>Para {calculo.filamento.gramosUtilizados}g utilizados</Text>
+          </View>
+        </View>
+
+        {/* Opciones avanzadas */}
+        {mostrarAvanzado && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>COSTOS AVANZADOS</Text>
+            <Text style={styles.label}>Otros materiales (MXN)</Text>
             <TextInput
               style={styles.input}
-              value={calculo.detallesImpresion.relleno}
-              onChangeText={(text) => handleDetallesImpresionChange('relleno', text)}
-              placeholder="Ej: 20"
+              value={calculo.avanzados.otrosMateriales}
+              onChangeText={(text) => handleAvanzadoChange('otrosMateriales', text)}
+              placeholder="Ej: 2.00"
               keyboardType="numeric"
             />
-            
-            <Text style={styles.label}>Tiempo de impresión (horas)</Text>
+            <Text style={styles.label}>Consumo de luz (kWh)</Text>
             <TextInput
               style={styles.input}
-              value={calculo.detallesImpresion.tiempoImpresion}
-              onChangeText={(text) => handleDetallesImpresionChange('tiempoImpresion', text)}
-              placeholder="Ej: 3.5"
+              value={calculo.avanzados.consumoKwh}
+              onChangeText={(text) => handleAvanzadoChange('consumoKwh', text)}
+              placeholder="Ej: 0.5"
               keyboardType="numeric"
             />
-            
-            <Text style={styles.label}>Temperatura (°C)</Text>
+            <Text style={styles.label}>Costo por kWh (MXN)</Text>
             <TextInput
               style={styles.input}
-              value={calculo.detallesImpresion.temperatura}
-              onChangeText={(text) => handleDetallesImpresionChange('temperatura', text)}
-              placeholder="Ej: 200"
+              value={calculo.avanzados.costoKwh}
+              onChangeText={(text) => handleAvanzadoChange('costoKwh', text)}
+              placeholder="Ej: 2.5"
               keyboardType="numeric"
             />
-            
-            <Text style={styles.label}>Velocidad de impresión (mm/s)</Text>
+
+            <Text style={styles.label}>Horas de impresion (horas)</Text>
             <TextInput
               style={styles.input}
-              value={calculo.detallesImpresion.velocidad}
-              onChangeText={(text) => handleDetallesImpresionChange('velocidad', text)}
+              value={calculo.avanzados.horasimpresion}
+              onChangeText={(text) => handleAvanzadoChange('horasimpresion', text)}
               placeholder="Ej: 60"
               keyboardType="numeric"
             />
-            
-            <Text style={styles.label}>Altura de capa (mm)</Text>
-            <TextInput
-              style={styles.input}
-              value={calculo.detallesImpresion.alturaCapa}
-              onChangeText={(text) => handleDetallesImpresionChange('alturaCapa', text)}
-              placeholder="Ej: 0.2"
-              keyboardType="numeric"
-            />
-            
-            <Text style={styles.label}>Notas adicionales</Text>
-            <TextInput
-              style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-              value={calculo.detallesImpresion.notas}
-              onChangeText={(text) => handleDetallesImpresionChange('notas', text)}
-              placeholder="Ej: Soporte necesario, configuración especial, etc."
-              placeholderTextColor="#666"
-              multiline
-            />
-          </>
-        )}
-      </View>
 
-      {/* Sección de Filamento */}
-      <View style={styles.section}>
-        <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
-
-          {/* cuadro general de calculo de filamento */}
-          <Text style={styles.sectionTitle}>CÁLCULO DE FILAMENTO</Text>
-
-          {/* Boton de opciones avanzadas al ser pulsado se activa la funcion de mostrar avanzado*/}
-          <TouchableOpacity
-          // al precionarse pone el valor contrario del de precionar avanzado.
-            style={styles.advancedToggleBtn} onPress={() => setMostrarAvanzado(!mostrarAvanzado)}>
-            <Text style={styles.advancedToggleText}>{mostrarAvanzado ? 'Ocultar' : 'Avanzado'}</Text>
-          </TouchableOpacity>
-
-
-        </View>
-        <Text style={styles.label}>Seleccionar material guardado</Text>
-
-        {/* Selector de material guardado como pastillas en 2 columnas, agrupado por tipo */}
-        <View style={{ flexDirection: 'column', flexWrap: 'wrap', marginBottom: 8 }}>
-          {loadingMateriales ? (
-            <ActivityIndicator size="small" color="#00e676" style={{ marginVertical: 10 }} />
-          ) : errorMateriales ? (
-            <Text style={{ color: 'red', textAlign: 'center', marginVertical: 10 }}>{errorMateriales}</Text>
-          ) : materialesGuardados.length === 0 ? (
-            <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 10 }}>No hay materiales guardados.</Text>
-          ) : (
-            (() => {
-              // Agrupar materiales por tipo
-              const matsPorTipo: { [tipo: string]: any[] } = {};
-              materialesGuardados.forEach(mat => {
-                const tipo = mat.tipo || 'Sin tipo';
-                if (!matsPorTipo[tipo]) matsPorTipo[tipo] = [];
-                matsPorTipo[tipo].push(mat);
-              });
-              return Object.entries(matsPorTipo).map(([tipo, mats], tipoIdx) => (
-                <View key={tipo} style={{ marginBottom: 8 }}>
-                  <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 15, marginBottom: 4 }}>{tipo}</Text>
-                  {(() => {
-                    const filas = [];
-                    for (let i = 0; i < mats.length; i += 2) {
-                      filas.push(mats.slice(i, i + 2));
-                    }
-                    return filas.map((fila, idx) => (
-                      <View key={idx} style={{ flexDirection: 'row', marginBottom: 4, justifyContent: 'center', alignSelf: 'center', maxWidth: 340, width: '100%' }}>
-                        {fila.map((mat) => (
-                          <TouchableOpacity
-                            key={mat.id}
-                            style={{
-                              flex: 1,
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              backgroundColor: materialSeleccionado === mat.id ? '#00e676' : '#222',
-                              borderColor: materialSeleccionado === mat.id ? '#00e676' : '#333',
-                              borderWidth: 2,
-                              borderRadius: 16,
-                              paddingVertical: 4,
-                              paddingHorizontal: 8,
-                              marginHorizontal: 4,
-                              minHeight: 40,
-                              maxWidth: '48%',
-                            }}
-                            onPress={() => handleSeleccionMaterial(mat.id)}
-                          >
-                            <View style={{
-                              width: 14,
-                              height: 14,
-                              borderRadius: 7,
-                              backgroundColor: mat.color || '#00e676',
-                              borderWidth: 1,
-                              borderColor: '#333',
-                              marginRight: 6,
-                            }} />
-                            <View style={{ flexShrink: 1 }}>
-                              <Text style={{
-                                color: materialSeleccionado === mat.id ? '#222' : '#fff',
-                                fontWeight: materialSeleccionado === mat.id ? 'bold' : 'normal',
-                                fontSize: 12,
-                                flexWrap: 'wrap',
-                              }} numberOfLines={1} ellipsizeMode="tail">{mat.nombre}</Text>
-                              <Text style={{ color: '#a0a0a0', fontSize: 10 }} numberOfLines={1} ellipsizeMode="tail">{mat.subtipo}</Text>
-                            </View>
-                          </TouchableOpacity>
-                        ))}
-                        {fila.length === 1 && <View style={{ flex: 1 }} />}
-                      </View>
-                    ));
-                  })()}
-                </View>
-              ));
-            })()
-          )}
-          {!cargandoMateriales && !errorMateriales && materialesGuardados.length > 5 && !verMasMateriales && (
-            <TouchableOpacity
-              style={{
-                backgroundColor: '#181818',
-                borderColor: '#00e676',
-                borderWidth: 2,
-                borderRadius: 20,
-                paddingVertical: 8,
-                paddingHorizontal: 14,
-                marginRight: 8,
-                marginBottom: 8,
-                marginTop: 16,
-                alignItems: 'center',
-                justifyContent: 'center',
-                alignSelf: 'center',
-              }}
-              onPress={() => setVerMasMateriales(true)}
-            >
-              <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 14 }}>Ver más...</Text>
+            <TouchableOpacity style={styles.calculateButton} onPress={calcularAvanzado}>
+              <Text style={styles.calculateButtonText}>Calcular avanzados</Text>
             </TouchableOpacity>
-          )}
-          {!cargandoMateriales && !errorMateriales && materialesGuardados.length > 5 && verMasMateriales && (
-            <TouchableOpacity
-              style={{
-                backgroundColor: '#181818',
-                borderColor: '#e53935',
-                borderWidth: 2,
-                borderRadius: 20,
-                paddingVertical: 8,
-                paddingHorizontal: 14,
-                marginRight: 8,
-                marginBottom: 8,
-                marginTop: 16,
-                alignItems: 'center',
-                justifyContent: 'center',
-                alignSelf: 'center',
-              }}
-              onPress={() => setVerMasMateriales(false)}
-            >
-              <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 14 }}>Ver menos...</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Selector de subtipo de filamento */}
-        {calculo.filamento.tipo && (
-          <>
-            <Text style={styles.label}>Subtipo de filamento</Text>
-            <View style={styles.pastillasContainer}>
-              {(subtiposFilamento.find(t => t.tipo === calculo.filamento.tipo)?.subtipos || []).map((sub, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[
-                    styles.pastilla,
-                    calculo.filamento.subtipo === sub && styles.pastillaSeleccionada
-                  ]}
-                  onPress={() => handleFilamentoChange('subtipo', sub)}
-                >
-                  <Text style={[
-                    styles.pastillaTexto,
-                    calculo.filamento.subtipo === sub && styles.pastillaTextoSeleccionada
-                  ]}>{sub}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.resultContainer}>
+              <Text style={styles.resultLabel}>Total materiales extra: <Text style={styles.costoBasico}>${calculo.avanzados.totalMaterialesExtra} MXN</Text></Text>
+              <Text style={styles.resultLabel}>Costo de luz: <Text style={styles.costoBasico}>${calculo.avanzados.costoLuz} MXN</Text></Text>
             </View>
-          </>
+          </View>
         )}
 
-        <Text style={styles.label}>Tipo de filamento</Text>
-        <View style={styles.pastillasContainer}>
-          {tiposFilamento.map((tipo, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.pastilla,
-                calculo.filamento.tipo === tipo && styles.pastillaSeleccionada
-              ]}
-              onPress={() => handleFilamentoChange('tipo', tipo)}
-            >
-              <Text style={[
-                styles.pastillaTexto,
-                calculo.filamento.tipo === tipo && styles.pastillaTextoSeleccionada
-              ]}>{tipo}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        
-        <Text style={styles.label}>Precio de la bobina (MXN)</Text>
-        <TextInput
-          style={styles.input}
-          value={calculo.filamento.precioBobina}
-          onChangeText={(text) => handleFilamentoChange('precioBobina', text)}
-          onBlur={calcularCostoFilamento}
-          placeholder="Ej: 450.00"
-          keyboardType="numeric"
-        />
-
-        <Text style={styles.label}>Peso de la bobina (gramos)</Text>
-        <TextInput
-          style={styles.input}
-          value={calculo.filamento.pesoBobina}
-          onChangeText={(text) => handleFilamentoChange('pesoBobina', text)}
-          onBlur={calcularCostoFilamento}
-          placeholder="Ej: 1000"
-          keyboardType="numeric"
-        />
-
-        <Text style={styles.label}>Gramos utilizados</Text>
-        <TextInput
-          style={styles.input}
-          value={calculo.filamento.gramosUtilizados}
-          onChangeText={(text) => handleFilamentoChange('gramosUtilizados', text)}
-          onBlur={calcularCostoFilamento}
-          placeholder="Ej: 40"
-          keyboardType="numeric"
-        />
-        
-        <View style={styles.resultContainer}>
-          <Text style={styles.resultLabel}>Costo total del filamento:</Text>
-          <Text style={styles.resultValue}>${calculo.filamento.costoFilamento} MXN</Text>
-          <Text style={styles.detailText}>Para {calculo.filamento.gramosUtilizados}g utilizados</Text>
-        </View>
-      </View>
-
-      {/* Opciones avanzadas */}
-      {mostrarAvanzado && (
+        {/* Sección de Mano de Obra */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>COSTOS AVANZADOS</Text>
-          <Text style={styles.label}>Otros materiales (MXN)</Text>
+          <Text style={styles.sectionTitle}>CÁLCULO DE MANO DE OBRA</Text>
+          <Text style={styles.subsectionTitle}>Preparación de la impresión</Text>
+          <Text style={styles.label}>Tiempo (horas)</Text>
           <TextInput
             style={styles.input}
-            value={calculo.avanzados.otrosMateriales}
-            onChangeText={(text) => handleAvanzadoChange('otrosMateriales', text)}
-            placeholder="Ej: 2.00"
+            value={calculo.manoObra.preparacionTiempo}
+            onChangeText={(text) => handleManoObraChange('preparacionTiempo', text)}
+            placeholder="Ej: 2"
             keyboardType="numeric"
           />
-          <Text style={styles.label}>Consumo de luz (kWh)</Text>
+          <Text style={styles.label}>Coste por hora (MXN)</Text>
           <TextInput
             style={styles.input}
-            value={calculo.avanzados.consumoKwh}
-            onChangeText={(text) => handleAvanzadoChange('consumoKwh', text)}
-            placeholder="Ej: 0.5"
+            value={calculo.manoObra.preparacionCosto}
+            onChangeText={(text) => handleManoObraChange('preparacionCosto', text)}
+            placeholder="Ej: 150.00"
             keyboardType="numeric"
           />
-          <Text style={styles.label}>Costo por kWh (MXN)</Text>
-          <TextInput
-            style={styles.input}
-            value={calculo.avanzados.costoKwh}
-            onChangeText={(text) => handleAvanzadoChange('costoKwh', text)}
-            placeholder="Ej: 2.5"
-            keyboardType="numeric"
-          />
-
-          <Text style={styles.label}>Horas de impresion (horas)</Text>
-          <TextInput
-            style={styles.input}
-            value={calculo.avanzados.horasimpresion}
-            onChangeText={(text) => handleAvanzadoChange('horasimpresion', text)}
-            placeholder="Ej: 60"
-            keyboardType="numeric"
-          />
-
-          <TouchableOpacity style={styles.calculateButton} onPress={calcularAvanzado}>
-            <Text style={styles.calculateButtonText}>Calcular avanzados</Text>
+          <TouchableOpacity style={styles.calculateButton} onPress={calcularManoObra}>
+            <Text style={styles.calculateButtonText}>Calcular mano de obra</Text>
           </TouchableOpacity>
-          <View style={styles.resultContainer}>
-            <Text style={styles.resultLabel}>Total materiales extra: <Text style={styles.costoBasico}>${calculo.avanzados.totalMaterialesExtra} MXN</Text></Text>
-            <Text style={styles.resultLabel}>Costo de luz: <Text style={styles.costoBasico}>${calculo.avanzados.costoLuz} MXN</Text></Text>
-          </View>
         </View>
-      )}
 
-      {/* Sección de Mano de Obra */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>CÁLCULO DE MANO DE OBRA</Text>
-        <Text style={styles.subsectionTitle}>Preparación de la impresión</Text>
-        <Text style={styles.label}>Tiempo (horas)</Text>
-        <TextInput
-          style={styles.input}
-          value={calculo.manoObra.preparacionTiempo}
-          onChangeText={(text) => handleManoObraChange('preparacionTiempo', text)}
-          placeholder="Ej: 2"
-          keyboardType="numeric"
-        />
-        <Text style={styles.label}>Coste por hora (MXN)</Text>
-        <TextInput
-          style={styles.input}
-          value={calculo.manoObra.preparacionCosto}
-          onChangeText={(text) => handleManoObraChange('preparacionCosto', text)}
-          placeholder="Ej: 150.00"
-          keyboardType="numeric"
-        />
-        <TouchableOpacity style={styles.calculateButton} onPress={calcularManoObra}>
-          <Text style={styles.calculateButtonText}>Calcular mano de obra</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Resumen total de costos */}
-      <View style={[styles.section, styles.totalSection]}>
-        <Text style={styles.sectionTitle}>RESUMEN DE COSTOS</Text>
-        {/* Barra de porcentaje de ganancia */}
-        <View style={{marginBottom: 20, flexDirection: 'row', alignItems: 'center'}}>
-          <Text style={{color: '#fff', fontSize: 15, marginRight: 8}}>Porcentaje de ganancia:</Text>
-          <TextInput
-            style={{
-              color: '#00e676',
-              fontWeight: 'bold',
-              backgroundColor: '#181818',
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor: '#00e676',
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              width: 60,
-              textAlign: 'center',
-              fontSize: 15,
-            }}
-            value={porcentajeGanancia.toString()}
-            onChangeText={text => {
-              // Solo permitir números
-              const num = text.replace(/[^0-9]/g, '');
-              setPorcentajeGanancia(num === '' ? 0 : parseInt(num));
-            }}
-            keyboardType="numeric"
-            maxLength={3}
-          />
-          <Text style={{color: '#00e676', fontWeight: 'bold', marginLeft: 4}}>%</Text>
-        </View>
-        {/* Información del material */}
-        {calculo.materialSeleccionado.id && (
-          <View style={styles.summaryMaterialContainer}>
-            <Text style={styles.summarySectionTitle}>📦 MATERIAL UTILIZADO</Text>
-            <View style={styles.summaryMaterialInfo}>
-              <View style={{
-                width: 16,
-                height: 16,
+        {/* Resumen total de costos */}
+        <View style={[styles.section, styles.totalSection]}>
+          <Text style={styles.sectionTitle}>RESUMEN DE COSTOS</Text>
+          {/* Barra de porcentaje de ganancia */}
+          <View style={{marginBottom: 20, flexDirection: 'row', alignItems: 'center'}}>
+            <Text style={{color: '#fff', fontSize: 15, marginRight: 8}}>Porcentaje de ganancia:</Text>
+            <TextInput
+              style={{
+                color: '#00e676',
+                fontWeight: 'bold',
+                backgroundColor: '#181818',
                 borderRadius: 8,
-                backgroundColor: calculo.materialSeleccionado.color || '#00e676',
                 borderWidth: 1,
-                borderColor: '#333',
-                marginRight: 8,
-              }} />
-              <Text style={styles.summaryMaterialText}>
-                {calculo.materialSeleccionado.nombre} ({calculo.materialSeleccionado.tipo} - {calculo.materialSeleccionado.subtipo})
+                borderColor: '#00e676',
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                width: 60,
+                textAlign: 'center',
+                fontSize: 15,
+              }}
+              value={porcentajeGanancia.toString()}
+              onChangeText={text => {
+                // Solo permitir números
+                const num = text.replace(/[^0-9]/g, '');
+                setPorcentajeGanancia(num === '' ? 0 : parseInt(num));
+              }}
+              keyboardType="numeric"
+              maxLength={3}
+            />
+            <Text style={{color: '#00e676', fontWeight: 'bold', marginLeft: 4}}>%</Text>
+          </View>
+          {/* Información del material */}
+          {calculo.materialSeleccionado.id && (
+            <View style={styles.summaryMaterialContainer}>
+              <Text style={styles.summarySectionTitle}>📦 MATERIAL UTILIZADO</Text>
+              <View style={styles.summaryMaterialInfo}>
+                <View style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: calculo.materialSeleccionado.color || '#00e676',
+                  borderWidth: 1,
+                  borderColor: '#333',
+                  marginRight: 8,
+                }} />
+                <Text style={styles.summaryMaterialText}>
+                  {calculo.materialSeleccionado.nombre} ({calculo.materialSeleccionado.tipo} - {calculo.materialSeleccionado.subtipo})
+                </Text>
+              </View>
+              <Text style={styles.summaryDetailText}>
+                Gramos utilizados: {calculo.filamento.gramosUtilizados}g
               </Text>
             </View>
-            <Text style={styles.summaryDetailText}>
-              Gramos utilizados: {calculo.filamento.gramosUtilizados}g
-            </Text>
-          </View>
-        )}
+          )}
 
-        {/* Detalles de impresión si están disponibles */}
-        {mostrarDetallesImpresion && (calculo.detallesImpresion.relleno || calculo.detallesImpresion.tiempoImpresion) && (
-          <View style={styles.summaryDetailsContainer}>
-            <Text style={styles.summarySectionTitle}>⚙️ CONFIGURACIÓN DE IMPRESIÓN</Text>
-            {calculo.detallesImpresion.relleno && (
-              <Text style={styles.summaryDetailText}>Relleno: {calculo.detallesImpresion.relleno}%</Text>
-            )}
-            {calculo.detallesImpresion.tiempoImpresion && (
-              <Text style={styles.summaryDetailText}>Tiempo: {calculo.detallesImpresion.tiempoImpresion}h</Text>
-            )}
-            {calculo.detallesImpresion.temperatura && (
-              <Text style={styles.summaryDetailText}>Temperatura: {calculo.detallesImpresion.temperatura}°C</Text>
-            )}
-            {calculo.detallesImpresion.velocidad && (
-              <Text style={styles.summaryDetailText}>Velocidad: {calculo.detallesImpresion.velocidad} mm/s</Text>
-            )}
-            {calculo.detallesImpresion.alturaCapa && (
-              <Text style={styles.summaryDetailText}>Altura de capa: {calculo.detallesImpresion.alturaCapa}mm</Text>
-            )}
-            {calculo.detallesImpresion.notas && (
-              <Text style={styles.summaryDetailText}>Notas: {calculo.detallesImpresion.notas}</Text>
-            )}
-          </View>
-        )}
+          {/* Detalles de impresión si están disponibles */}
+          {mostrarDetallesImpresion && (calculo.detallesImpresion.relleno || calculo.detallesImpresion.tiempoImpresion) && (
+            <View style={styles.summaryDetailsContainer}>
+              <Text style={styles.summarySectionTitle}>⚙️ CONFIGURACIÓN DE IMPRESIÓN</Text>
+              {calculo.detallesImpresion.relleno && (
+                <Text style={styles.summaryDetailText}>Relleno: {calculo.detallesImpresion.relleno}%</Text>
+              )}
+              {calculo.detallesImpresion.tiempoImpresion && (
+                <Text style={styles.summaryDetailText}>Tiempo: {calculo.detallesImpresion.tiempoImpresion}h</Text>
+              )}
+              {calculo.detallesImpresion.temperatura && (
+                <Text style={styles.summaryDetailText}>Temperatura: {calculo.detallesImpresion.temperatura}°C</Text>
+              )}
+              {calculo.detallesImpresion.velocidad && (
+                <Text style={styles.summaryDetailText}>Velocidad: {calculo.detallesImpresion.velocidad} mm/s</Text>
+              )}
+              {calculo.detallesImpresion.alturaCapa && (
+                <Text style={styles.summaryDetailText}>Altura de capa: {calculo.detallesImpresion.alturaCapa}mm</Text>
+              )}
+              {calculo.detallesImpresion.notas && (
+                <Text style={styles.summaryDetailText}>Notas: {calculo.detallesImpresion.notas}</Text>
+              )}
+            </View>
+          )}
 
-        {/* Costos */}
-        <View style={styles.summaryCostsContainer}>
-          <Text style={styles.summarySectionTitle}>💰 DESGLOSE DE COSTOS</Text>
-          <Text style={styles.resumenLabel}>Materiales: <Text style={styles.costoBasico}>${calculo.filamento.costoMaterialSolo} MXN</Text></Text>
-          <Text style={styles.resumenLabel}>Mano de obra: <Text style={styles.costoBasico}>${calculo.manoObra.costoTotalManoObra} MXN</Text></Text>
-          <Text style={styles.resumenLabel}>Materiales extra: <Text style={styles.costoBasico}>${calculo.avanzados.totalMaterialesExtra} MXN</Text></Text>
-          <Text style={styles.resumenLabel}>Luz: <Text style={styles.costoBasico}>${calculo.avanzados.costoLuz} MXN</Text></Text>
+          {/* Costos */}
+          <View style={styles.summaryCostsContainer}>
+            <Text style={styles.summarySectionTitle}>💰 DESGLOSE DE COSTOS</Text>
+            <Text style={styles.resumenLabel}>Materiales: <Text style={styles.costoBasico}>${calculo.filamento.costoMaterialSolo} MXN</Text></Text>
+            <Text style={styles.resumenLabel}>Mano de obra: <Text style={styles.costoBasico}>${calculo.manoObra.costoTotalManoObra} MXN</Text></Text>
+            <Text style={styles.resumenLabel}>Materiales extra: <Text style={styles.costoBasico}>${calculo.avanzados.totalMaterialesExtra} MXN</Text></Text>
+            <Text style={styles.resumenLabel}>Luz: <Text style={styles.costoBasico}>${calculo.avanzados.costoLuz} MXN</Text></Text>
+          </View>
+
+          {/* Totales */}
+          <View style={styles.finalTotalsContainer}>
+            <Text style={[styles.resumenLabel, {color: '#e53935'}]}>Costo de producción: <Text style={styles.costoProduccion}>${getProduccion()} MXN</Text></Text>
+            <Text style={[styles.resumenLabel, {color: '#00e676'}]}>Precio de venta: <Text style={styles.costoVenta}>${getPrecioVenta()} MXN</Text></Text>
+          </View>
         </View>
 
-        {/* Totales */}
-        <View style={styles.finalTotalsContainer}>
-          <Text style={[styles.resumenLabel, {color: '#e53935'}]}>Costo de producción: <Text style={styles.costoProduccion}>${getProduccion()} MXN</Text></Text>
-          <Text style={[styles.resumenLabel, {color: '#00e676'}]}>Precio de venta: <Text style={styles.costoVenta}>${getPrecioVenta()} MXN</Text></Text>
-        </View>
-      </View>
+        <TouchableOpacity style={styles.saveButton} onPress={guardarEnBaseDeDatos}>
+          <Text style={styles.saveButtonText}>GUARDAR CÁLCULO</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.saveButton} onPress={guardarEnBaseDeDatos}>
-        <Text style={styles.saveButtonText}>GUARDAR CÁLCULO</Text>
-      </TouchableOpacity>
-
-      {/* Botón para registrar fallo de impresión */}
-      <TouchableOpacity style={[styles.saveButton, { backgroundColor: '#e53935', marginTop: 10 }]} onPress={async () => {
-        if (!calculo.nombre.trim()) {
-          showCustomAlert('Error', 'Por favor ingresa un nombre para el cálculo', 'error');
-          return;
-        }
-        const user = auth.currentUser;
-        if (!user) {
-          showCustomAlert('Error', 'Debes iniciar sesión para guardar cálculos', 'error');
-          return;
-        }
-        showCustomAlert('Guardando', 'Registrando fallo...', 'info');
-        try {
-          const fecha = new Date();
-          const fechaFormateada = fecha.toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-          const nuevoCalculo = {
-            ...calculo,
-            fecha: fecha.toISOString(),
-            fechaFormateada: fechaFormateada,
-            costoTotal: getTotal(),
-            fallo: true,
-          };
-          await addDoc(collection(db, 'usuarios', user.uid, 'calculos'), nuevoCalculo);
-          showCustomAlert('❌ Impresión fallida', `El fallo de impresión fue registrado.`, 'error');
-          // Limpiar el formulario después de guardar
-          setCalculo({
-            nombre: '',
-            usuario: '',
-            materialSeleccionado: {
-              id: '',
+        {/* Botón para registrar fallo de impresión */}
+        <TouchableOpacity style={[styles.saveButton, { backgroundColor: '#e53935', marginTop: 10 }]} onPress={async () => {
+          if (!calculo.nombre.trim()) {
+            showCustomAlert('Error', 'Por favor ingresa un nombre para el cálculo', 'error');
+            return;
+          }
+          const user = auth.currentUser;
+          if (!user) {
+            showCustomAlert('Error', 'Debes iniciar sesión para guardar cálculos', 'error');
+            return;
+          }
+          showCustomAlert('Guardando', 'Registrando fallo...', 'info');
+          try {
+            const fecha = new Date();
+            const fechaFormateada = fecha.toLocaleDateString('es-ES', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            const nuevoCalculo = {
+              ...calculo,
+              fecha: fecha.toISOString(),
+              fechaFormateada: fechaFormateada,
+              costoTotal: getTotal(),
+              fallo: true,
+            };
+            await addDoc(collection(db, 'usuarios', user.uid, 'calculos'), nuevoCalculo);
+            showCustomAlert('❌ Impresión fallida', `El fallo de impresión fue registrado.`, 'error');
+            // Limpiar el formulario después de guardar
+            setCalculo({
               nombre: '',
-              tipo: '',
-              subtipo: '',
-              color: '',
-            },
-            detallesImpresion: {
-              relleno: '',
-              tiempoImpresion: '',
-              temperatura: '',
-              velocidad: '',
-              alturaCapa: '',
-              notas: '',
-            },
-            filamento: {
-              tipo: '',
-              subtipo: '',
-              precioBobina: '',
-              pesoBobina: '',
-              gramosUtilizados: '40',
-              costoFilamento: '12',
-              costoMaterialSolo: '10',
-            },
-            manoObra: {
-              preparacionTiempo: '',
-              preparacionCosto: '',
-              costoTotalManoObra: '12',
-            },
-            avanzados: {
-              arosLlavero: '',
-              imanes: '',
-              otrosMateriales: '',
-              consumoKwh: '',
-              costoKwh: '',
-              costoLuz: '0',
-              horasimpresion:'0',
-              totalMaterialesExtra: '0',
-            },
-            fecha: new Date().toISOString(),
-          });
-          setMaterialSeleccionado('');
-          setMostrarDetallesImpresion(false);
-        } catch (error) {
-          showCustomAlert('Error', 'No se pudo registrar el fallo. Intenta de nuevo.', 'error');
-        }
-      }}>
-        <Text style={[styles.saveButtonText, { color: '#fff' }]}>REGISTRAR FALLO</Text>
-      </TouchableOpacity>
+              usuario: '',
+              materialSeleccionado: {
+                id: '',
+                nombre: '',
+                tipo: '',
+                subtipo: '',
+                color: '',
+              },
+              detallesImpresion: {
+                relleno: '',
+                tiempoImpresion: '',
+                temperatura: '',
+                velocidad: '',
+                alturaCapa: '',
+                notas: '',
+              },
+              filamento: {
+                tipo: '',
+                subtipo: '',
+                precioBobina: '',
+                pesoBobina: '',
+                gramosUtilizados: '40',
+                costoFilamento: '12',
+                costoMaterialSolo: '10',
+              },
+              manoObra: {
+                preparacionTiempo: '',
+                preparacionCosto: '',
+                costoTotalManoObra: '12',
+              },
+              avanzados: {
+                arosLlavero: '',
+                imanes: '',
+                otrosMateriales: '',
+                consumoKwh: '',
+                costoKwh: '',
+                costoLuz: '0',
+                horasimpresion:'0',
+                totalMaterialesExtra: '0',
+              },
+              fecha: new Date().toISOString(),
+            });
+            setMaterialSeleccionado('');
+            setMostrarDetallesImpresion(false);
+          } catch (error) {
+            showCustomAlert('Error', 'No se pudo registrar el fallo. Intenta de nuevo.', 'error');
+          }
+        }}>
+          <Text style={[styles.saveButtonText, { color: '#fff' }]}>REGISTRAR FALLO</Text>
+        </TouchableOpacity>
 
-      {/* Modal de alerta personalizada para web */}
-      <Modal
-        visible={showAlert}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowAlert(false)}
-      >
-        <View style={styles.alertOverlay}>
-          <View style={[
-            styles.alertContainer,
-            alertType === 'success' && styles.alertSuccess,
-            alertType === 'error' && styles.alertError,
-            alertType === 'info' && styles.alertInfo,
-          ]}>
-            <Text style={styles.alertTitle}>{alertTitle}</Text>
-            <Text style={styles.alertMessage}>{alertMessage}</Text>
-            <TouchableOpacity
-              style={[
-                styles.alertButton,
-                alertType === 'success' && styles.alertButtonSuccess,
-                alertType === 'error' && styles.alertButtonError,
-                alertType === 'info' && styles.alertButtonInfo,
-              ]}
-              onPress={() => setShowAlert(false)}
-            >
-              <Text style={[
-                styles.alertButtonText,
-                alertType === 'success' && { color: '#222' },
-                alertType === 'error' && { color: '#fff' },
-                alertType === 'info' && { color: '#fff' },
-              ]}>OK</Text>
-            </TouchableOpacity>
+        {/* Modal de alerta personalizada para web */}
+        <Modal
+          visible={showAlert}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowAlert(false)}
+        >
+          <View style={styles.alertOverlay}>
+            <View style={[
+              styles.alertContainer,
+              alertType === 'success' && styles.alertSuccess,
+              alertType === 'error' && styles.alertError,
+              alertType === 'info' && styles.alertInfo,
+            ]}>
+              <Text style={styles.alertTitle}>{alertTitle}</Text>
+              <Text style={styles.alertMessage}>{alertMessage}</Text>
+              <TouchableOpacity
+                style={[
+                  styles.alertButton,
+                  alertType === 'success' && styles.alertButtonSuccess,
+                  alertType === 'error' && styles.alertButtonError,
+                  alertType === 'info' && styles.alertButtonInfo,
+                ]}
+                onPress={() => setShowAlert(false)}
+              >
+                <Text style={[
+                  styles.alertButtonText,
+                  alertType === 'success' && { color: '#222' },
+                  alertType === 'error' && { color: '#fff' },
+                  alertType === 'info' && { color: '#fff' },
+                ]}>OK</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </Modal>
+        {/* Espacio visual para la barra de tabs */}
+        <View style={{ height: 70, backgroundColor: '#0d0d0d' }} />
+      </ScrollView>
   );
 };
 
@@ -1010,8 +1032,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0d0d0d',
-    padding: 20,
+    padding: 16,
     marginTop: 30,
+    paddingBottom: 70,
   },
   header: {
     marginBottom: 20,
@@ -1125,7 +1148,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     alignItems: 'center',
     marginTop: 20,
-    marginBottom: 40,
+    marginBottom: 0,
     elevation: 5,
     shadowColor: '#00e676',
     shadowOffset: { width: 0, height: 4 },
