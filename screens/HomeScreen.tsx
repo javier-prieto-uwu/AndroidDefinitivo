@@ -72,6 +72,18 @@ const HomeScreen: React.FC = () => {
     }, [])
   );
 
+  // Relación entre valor de imagen y require correspondiente
+  const ICONOS_PNG = {
+    filamento: require('../assets/filamento.png'),
+    gancho: require('../assets/gancho.png'),
+    resina: require('../assets/resina.png'),
+    pinturas: require('../assets/pinturas.png'),
+    pegamentos: require('../assets/pegamentos.png'),
+    niidea: require('../assets/niidea.png'),
+    brochas: require('../assets/brochas.png'),
+    arosllaveros: require('../assets/arosllaveros.png'),
+  };
+
   return (
     <ScrollView style={styles.contenedorP}>
       {/* Encabezado */}
@@ -150,7 +162,11 @@ const HomeScreen: React.FC = () => {
                   {/* Contenedor de imagen */}
                   <View style={styles.imageContainer}>
                     <Image 
-                      source={{ uri: material.imagen || 'https://www.mexicomakers.com.mx/cdn/shop/files/PLABlack.jpg?v=1740682017' }} 
+                      source={
+                        material.imagen && ICONOS_PNG[material.imagen as keyof typeof ICONOS_PNG]
+                          ? ICONOS_PNG[material.imagen as keyof typeof ICONOS_PNG]
+                          : { uri: 'https://www.mexicomakers.com.mx/cdn/shop/files/PLABlack.jpg?v=1740682017' }
+                      }
                       style={styles.materialImage}
                       resizeMode="cover"
                     />

@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal } from 'react-native'
 import React, { useState, useRef, useCallback } from 'react'
 import { auth, app } from '../api/firebase'
 import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
@@ -84,6 +84,18 @@ const InventoryScreen: React.FC = () => {
     } catch (e) {
       setShowDeleteAlert(false);
     }
+  };
+
+  // Relación entre valor de imagen y require correspondiente
+  const ICONOS_PNG = {
+    filamento: require('../assets/filamento.png'),
+    gancho: require('../assets/gancho.png'),
+    resina: require('../assets/resina.png'),
+    pinturas: require('../assets/pinturas.png'),
+    pegamentos: require('../assets/pegamentos.png'),
+    niidea: require('../assets/niidea.png'),
+    brochas: require('../assets/brochas.png'),
+    arosllaveros: require('../assets/arosllaveros.png'),
   };
 
   return (
@@ -174,8 +186,6 @@ const InventoryScreen: React.FC = () => {
                 <View style={styles.materialesGrid}>
                   {materialesFiltrados.filter(m => m.categoria === cat).map((mat) => (
                     <View key={mat.id} style={styles.materialCapsula}>
-                      {/* Bolita de color prominente */}
-                      <View style={[styles.colorCirculo, { backgroundColor: mat.color || '#00e676' }]} />
                       {/* Botón eliminar material */}
                       <TouchableOpacity
                         style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
@@ -183,6 +193,18 @@ const InventoryScreen: React.FC = () => {
                       >
                         <Ionicons name="trash" size={20} color="#e53935" />
                       </TouchableOpacity>
+                      
+                      {/* Imagen del material como título visual */}
+                      <Image
+                        source={
+                          mat.imagen && ICONOS_PNG[mat.imagen]
+                            ? ICONOS_PNG[mat.imagen]
+                            : require('../assets/filamento.png') // Imagen por defecto
+                        }
+                        style={styles.materialImage}
+                        resizeMode="contain"
+                      />
+                      
                       {/* Información del material */}
                       <View style={styles.materialInfo}>
                         <Text style={styles.materialNombre} numberOfLines={2} ellipsizeMode="tail">
@@ -198,6 +220,10 @@ const InventoryScreen: React.FC = () => {
                           </Text>
                         )}
                       </View>
+                      
+                      {/* Bolita de color prominente */}
+                      <View style={[styles.colorCirculo, { backgroundColor: mat.color || '#00e676' }]} />
+                      
                       {/* Detalles del material */}
                       <View style={styles.materialDetalles}>
                         <View style={styles.detalleFila}>
@@ -206,12 +232,20 @@ const InventoryScreen: React.FC = () => {
                         </View>
                         <View style={styles.detalleFila}>
                           <Text style={styles.detalleLabel}>Inicial:</Text>
-                          <Text style={styles.detalleValor}>{mat.peso || mat.pesoBobina || '-'}g</Text>
+                          <Text style={styles.detalleValor}>
+                            {mat.categoria === 'Pintura' 
+                              ? (mat.cantidad || mat.cantidadPintura || '-') + 'ml'
+                              : (mat.peso || mat.pesoBobina || '-') + 'g'
+                            }
+                          </Text>
                         </View>
                         <View style={styles.detalleFila}>
                           <Text style={styles.detalleLabel}>Restante:</Text>
                           <Text style={styles.detalleValor}>
-                            {typeof mat.cantidadRestante !== 'undefined' ? mat.cantidadRestante + 'g' : '-'}
+                            {typeof mat.cantidadRestante !== 'undefined' 
+                              ? mat.cantidadRestante + (mat.categoria === 'Pintura' ? 'ml' : 'g')
+                              : '-'
+                            }
                           </Text>
                         </View>
                         <View style={styles.detalleFila}>
@@ -236,22 +270,29 @@ const InventoryScreen: React.FC = () => {
         <View style={{ height: 70, backgroundColor: '#0d0d0d' }} />
         {/* Modal de confirmación de eliminación */}
         {showDeleteAlert && (
-          <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
-            <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350, borderColor: '#e53935', borderWidth: 2 }}>
-              <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>⚠️ Eliminar material</Text>
-              <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>
-                ¿Estás seguro de que quieres eliminar el material "{materialAEliminar?.nombre}"?
-              </Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
-                <TouchableOpacity onPress={() => setShowDeleteAlert(false)} style={{ padding: 10, borderRadius: 8, backgroundColor: '#a0a0a0', marginRight: 8 }}>
-                  <Text style={{ color: '#222', fontWeight: 'bold' }}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleEliminarMaterial} style={{ padding: 10, borderRadius: 8, backgroundColor: '#e53935' }}>
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Eliminar</Text>
-                </TouchableOpacity>
+          <Modal
+            visible={showDeleteAlert}
+            animationType="fade"
+            transparent={true}
+            onRequestClose={() => setShowDeleteAlert(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>⚠️ Eliminar material</Text>
+                <Text style={styles.modalMessage}>
+                  ¿Estás seguro de que quieres eliminar el material "{materialAEliminar?.nombre}"?
+                </Text>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity onPress={() => setShowDeleteAlert(false)} style={styles.modalButtonCancel}>
+                    <Text style={styles.modalButtonTextCancel}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleEliminarMaterial} style={styles.modalButtonDelete}>
+                    <Text style={styles.modalButtonTextDelete}>Eliminar</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
+          </Modal>
         )}
       </ScrollView>
   )
@@ -438,6 +479,66 @@ const styles = StyleSheet.create({
   detalleValor: {
     color: '#00e676',
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  materialImage: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#333',
+    alignSelf: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#181818',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 350,
+    borderColor: '#e53935',
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    color: '#e53935',
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 12,
+  },
+  modalMessage: {
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  modalButtonCancel: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#a0a0a0',
+  },
+  modalButtonTextCancel: {
+    color: '#222',
+    fontWeight: 'bold',
+  },
+  modalButtonDelete: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#e53935',
+  },
+  modalButtonTextDelete: {
+    color: '#fff',
     fontWeight: 'bold',
   },
 });
