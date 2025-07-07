@@ -16,6 +16,8 @@ import { useFonts } from 'expo-font';
 import { ActivityIndicator, View, Dimensions, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LanguageProvider, useLanguage } from './utils/LanguageProvider';
+import translations from './utils/locales';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -80,6 +82,8 @@ const MyDarkTheme = {
 function MainTabs({ setIsLoggedIn }) {
   const insets = useSafeAreaInsets();
   const deviceInfo = getDeviceInfo();
+  const { lang } = useLanguage();
+  const t = translations[lang];
   
   // Configuración responsiva para las tabs
   const tabBarHeight = deviceInfo.isTablet ? 80 : 60;
@@ -125,7 +129,7 @@ function MainTabs({ setIsLoggedIn }) {
       }}
     >
       <Tab.Screen 
-        name="Inicio"
+        name={t.home}
         component={HomeScreen} 
         options={{
           tabBarIcon: ({ color, focused }) => (
@@ -141,7 +145,7 @@ function MainTabs({ setIsLoggedIn }) {
         }}
       />
       <Tab.Screen 
-        name="Agregar"
+        name={t.add}
         component={AddMaterialScreen} 
         options={{
           tabBarIcon: ({ color, focused }) => (
@@ -157,7 +161,7 @@ function MainTabs({ setIsLoggedIn }) {
         }}
       />
       <Tab.Screen 
-        name="Costos"
+        name={t.costs}
         component={CostCalculatorScreen} 
         options={{
           tabBarIcon: ({ color, focused }) => (
@@ -173,7 +177,7 @@ function MainTabs({ setIsLoggedIn }) {
         }}
       />
       <Tab.Screen 
-        name="Inventario"
+        name={t.inventory}
         component={InventoryScreen} 
         options={{
           tabBarIcon: ({ color, focused }) => (
@@ -189,7 +193,7 @@ function MainTabs({ setIsLoggedIn }) {
         }}
       />
       <Tab.Screen 
-        name="Historial"
+        name={t.history}
         component={PrintScreen} 
         options={{
           tabBarIcon: ({ color, focused }) => (
@@ -205,7 +209,7 @@ function MainTabs({ setIsLoggedIn }) {
         }}
       />
       <Tab.Screen 
-        name="Menú"
+        name={t.menu}
         options={{
           tabBarIcon: ({ color, focused }) => (
             <TabIcon 
@@ -249,7 +253,7 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
+    <LanguageProvider>
       {/* View para el fondo de la barra de estado */}
       <View style={{ 
         position: 'absolute', 
@@ -286,6 +290,6 @@ export default function App() {
           )}
         </Stack.Navigator>
       </NavigationContainer>
-    </SafeAreaProvider>
+    </LanguageProvider>
   );
 }

@@ -14,6 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '../api/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useLanguage } from '../utils/LanguageProvider';
+import translations from '../utils/locales';
 
 interface LoginScreenProps {
   navigation: any;
@@ -21,6 +23,8 @@ interface LoginScreenProps {
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
+  const { lang, setLang } = useLanguage();
+  const t = translations[lang];
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,7 +32,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      Alert.alert('Error', t.pleaseCompleteAllFields);
       return;
     }
 
@@ -37,10 +41,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
       await signInWithEmailAndPassword(auth, email, password);
       if (typeof onLogin === 'function') onLogin();
     } catch (error: any) {
-      let msg = 'Error de inicio de sesión';
-      if (error.code === 'auth/user-not-found') msg = 'Usuario no encontrado';
-      else if (error.code === 'auth/wrong-password') msg = 'Contraseña incorrecta';
-      else if (error.code === 'auth/invalid-email') msg = 'Correo inválido';
+      let msg = t.loginError;
+      if (error.code === 'auth/user-not-found') msg = t.userNotFound;
+      else if (error.code === 'auth/wrong-password') msg = t.wrongPassword;
+      else if (error.code === 'auth/invalid-email') msg = t.invalidEmail;
       Alert.alert('Error', msg);
     } finally {
       setLoading(false);
@@ -49,13 +53,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
+      Alert.alert('Error', t.pleaseEnterYourEmail);
       return;
     }
 
     Alert.alert(
-      'Correo enviado', 
-      'Se ha enviado un enlace para restablecer tu contraseña a tu correo electrónico'
+      t.passwordResetEmailSent, 
+      t.passwordResetEmailMessage
     );
   };
 
@@ -77,18 +81,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
             <Ionicons name="person" size={60} color="#00e676" />
           </View>
           
-          <Text style={styles.title}>Bienvenido uwu</Text>
-          <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
+          <Text style={styles.title}>{t.welcome}</Text>
+          <Text style={styles.subtitle}>{t.loginToYourAccount}</Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Correo electrónico</Text>
+            <Text style={styles.label}>{t.email}</Text>
             <TextInput
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="tu@email.com"
+              placeholder={t.emailPlaceholder}
               placeholderTextColor="#666"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -97,13 +101,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Contraseña</Text>
+            <Text style={styles.label}>{t.password}</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={[styles.input, styles.passwordInput]}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Tu contraseña"
+                placeholder={t.passwordPlaceholder}
                 placeholderTextColor="#666"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
@@ -125,26 +129,26 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
             style={styles.forgotPassword}
             onPress={handleForgotPassword}
           >
-            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+            <Text style={styles.forgotPasswordText}>{t.forgotPassword}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+            style={[styles.loginButton, loading ? styles.loginButtonDisabled : null]}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#000" />
             ) : (
-              <Text style={styles.loginButtonText}>Iniciar sesión</Text>
+              <Text style={styles.loginButtonText}>{t.login}</Text>
             )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
+          <Text style={styles.footerText}>{t.noAccount}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={styles.footerLink}>Regístrate aquí</Text>
+            <Text style={styles.footerLink}>{t.registerHere}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

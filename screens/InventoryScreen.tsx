@@ -4,14 +4,25 @@ import { auth, app } from '../api/firebase'
 import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useMateriales } from '../hooks';
+import { filtrarMateriales } from '../utils';
+import { useLanguage } from '../utils/LanguageProvider';
+import translations from '../utils/locales';
 
 // Simulación de materiales locales
 
 const InventoryScreen: React.FC = () => {
-  // Estado para materiales reales
-  const [materiales, setMateriales] = useState<any[]>([]);
-  const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { lang } = useLanguage();
+  const t = translations[lang];
+  // Usar el hook de materiales
+  const { 
+    materiales, 
+    loading: cargando, 
+    error, 
+    eliminarMaterial,
+    setFiltro 
+  } = useMateriales();
+  
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
@@ -21,32 +32,7 @@ const InventoryScreen: React.FC = () => {
 
   const db = getFirestore(app);
 
-  // Leer materiales desde Firestore cada vez que la pestaña se enfoca
-  useFocusEffect(
-    useCallback(() => {
-      const cargarMateriales = async () => {
-        setCargando(true);
-        setError(null);
-        const user = auth.currentUser;
-        if (!user) {
-          setMateriales([]);
-          setCargando(false);
-          return;
-        }
-        try {
-          const snapshot = await getDocs(collection(db, 'usuarios', user.uid, 'materiales'));
-          const mats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setMateriales(mats);
-        } catch (e) {
-          setError('Error al cargar materiales');
-          setMateriales([]);
-        } finally {
-          setCargando(false);
-        }
-      };
-      if (isFocused) cargarMateriales();
-    }, [isFocused])
-  );
+  // El hook useMateriales ya maneja la carga automática de materiales
 
   // Filtro de materiales por búsqueda
   const materialesFiltrados = materiales.filter(mat => {
@@ -72,15 +58,9 @@ const InventoryScreen: React.FC = () => {
   const handleEliminarMaterial = async () => {
     if (!materialAEliminar) return;
     try {
-      const user = auth.currentUser;
-      if (!user) return;
-      await deleteDoc(doc(db, 'usuarios', user.uid, 'materiales', materialAEliminar.id));
+      await eliminarMaterial(materialAEliminar.id);
       setMaterialAEliminar(null);
       setShowDeleteAlert(false);
-      // Recargar materiales
-      const snapshot = await getDocs(collection(db, 'usuarios', user.uid, 'materiales'));
-      const mats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setMateriales(mats);
     } catch (e) {
       setShowDeleteAlert(false);
     }
@@ -98,12 +78,32 @@ const InventoryScreen: React.FC = () => {
     arosllaveros: require('../assets/arosllaveros.png'),
   };
 
+  // Filtrar materiales agotados y disponibles
+  const materialesAgotados = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') <= 0);
+  const materialesDisponibles = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') > 0);
+
+  // Función para calcular el stock en unidades
+  const getStockUnidades = (mat) => {
+    const categoria = mat.categoria || t.filament;
+    const restante = parseFloat(mat.cantidadRestante || mat.cantidad || '0');
+    if (categoria === t.filament || categoria === t.resin) {
+      const peso = parseFloat(mat.peso || mat.pesoBobina || '1');
+      return peso > 0 ? Math.floor(restante / peso) : 0;
+    } else if (categoria === t.paint) {
+      const cantidadFrasco = parseFloat(mat.cantidad || '1');
+      return cantidadFrasco > 0 ? Math.floor(restante / cantidadFrasco) : 0;
+    } else {
+      // Para aros de llavero y categorías personalizadas, usar cantidad (stock actual en unidades)
+      return Math.floor(parseFloat(mat.cantidad || '0'));
+    }
+  };
+
   return (
     <ScrollView style={styles.container} ref={scrollViewRef}>
         {/* Encabezado */}
         <View style={styles.header}>
-          <Text style={styles.welcomeText}>Inventario</Text>
-          <Text style={styles.username}>Materiales disponibles</Text>
+          <Text style={styles.welcomeText}>{t.inventoryTitle}</Text>
+          <Text style={styles.username}>{t.availableMaterials}</Text>
         </View>
 
         {/* Filtro de búsqueda */}
@@ -118,7 +118,7 @@ const InventoryScreen: React.FC = () => {
               padding: 12,
               fontSize: 16,
             }}
-            placeholder="Buscar material por nombre, tipo o subtipo..."
+            placeholder={t.searchMaterialPlaceholder}
             placeholderTextColor="#888"
             value={busqueda}
             onChangeText={setBusqueda}
@@ -127,7 +127,7 @@ const InventoryScreen: React.FC = () => {
 
         {/* Selector de categorías */}
         <View style={styles.selectorContainer}>
-          <Text style={styles.selectorTitle}>Categorías</Text>
+          <Text style={styles.selectorTitle}>{t.categories}</Text>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -135,20 +135,20 @@ const InventoryScreen: React.FC = () => {
             contentContainerStyle={styles.categoriasContent}
           >
             {categorias.length === 0 ? (
-              <Text style={{ color: '#a0a0a0', marginLeft: 10 }}>Sin categorías</Text>
+              <Text style={{ color: '#a0a0a0', marginLeft: 10 }}>{t.noCategories}</Text>
             ) : (
               categorias.map((cat) => (
                 <TouchableOpacity
                   key={cat}
                   style={[
                     styles.categoriaBoton,
-                    categoriaSeleccionada === cat && styles.categoriaBotonActivo
+                    categoriaSeleccionada === cat ? styles.categoriaBotonActivo : null
                   ]}
                   onPress={() => navegarACategoria(cat)}
                 >
                   <Text style={[
                     styles.categoriaBotonText,
-                    categoriaSeleccionada === cat && styles.categoriaBotonTextActivo
+                    categoriaSeleccionada === cat ? styles.categoriaBotonTextActivo : null
                   ]}>
                     {cat}
                   </Text>
@@ -160,22 +160,22 @@ const InventoryScreen: React.FC = () => {
 
         {/* Resumen del inventario */}
         <View style={styles.summaryContainer}>
-          <Text style={styles.summaryLabel}>Total de materiales</Text>
+          <Text style={styles.summaryLabel}>{t.totalMaterials}</Text>
           <View style={styles.summaryAmountContainer}>
             <Text style={styles.summaryAmount}>{cargando ? '...' : materialesFiltrados.length}</Text>
-            <Text style={styles.summaryUnit}>materiales</Text>
+            <Text style={styles.summaryUnit}>{t.materials}</Text>
           </View>
         </View>
 
         {/* Lista de materiales por categoría */}
         <View style={styles.materialsContainer}>
-          <Text style={styles.sectionTitle}>Materiales por categoría</Text>
+          <Text style={styles.sectionTitle}>{t.materialsByCategory}</Text>
           {cargando ? (
-            <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 20 }}>Cargando materiales...</Text>
+            <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 20 }}>{t.loadingMaterials}</Text>
           ) : error ? (
             <Text style={{ color: 'red', textAlign: 'center', marginVertical: 20 }}>{error}</Text>
           ) : materialesFiltrados.length === 0 ? (
-            <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 20 }}>No hay materiales registrados.</Text>
+            <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 20 }}>{t.noMaterialsRegistered}</Text>
           ) : (
             categorias.map((cat) => (
               <View 
@@ -227,33 +227,56 @@ const InventoryScreen: React.FC = () => {
                       {/* Detalles del material */}
                       <View style={styles.materialDetalles}>
                         <View style={styles.detalleFila}>
-                          <Text style={styles.detalleLabel}>Precio:</Text>
+                          <Text style={styles.detalleLabel}>{t.price}</Text>
                           <Text style={styles.detalleValor}>${mat.precio}</Text>
                         </View>
                         <View style={styles.detalleFila}>
-                          <Text style={styles.detalleLabel}>Inicial:</Text>
+                          <Text style={styles.detalleLabel}>{t.initialStock}</Text>
                           <Text style={styles.detalleValor}>
-                            {mat.categoria === 'Pintura' 
-                              ? (mat.cantidad || mat.cantidadPintura || '-') + 'ml'
-                              : (mat.peso || mat.pesoBobina || '-') + 'g'
-                            }
+                            {((mat as any).cantidadInicial || mat.cantidad || '-') + ' ' + t.units}
                           </Text>
                         </View>
                         <View style={styles.detalleFila}>
-                          <Text style={styles.detalleLabel}>Restante:</Text>
+                          <Text style={styles.detalleLabel}>{t.currentStock}</Text>
+                          <Text style={styles.detalleValor}>
+                            {mat.categoria === t.filament || mat.categoria === t.resin
+                              ? (() => {
+                                  const restante = parseFloat(mat.cantidadRestante || '0');
+                                  const peso = parseFloat(mat.peso || '1');
+                                  return peso > 0 ? Math.floor(restante / peso) : 0;
+                                })() + ' ' + t.units
+                              : mat.categoria === t.paint
+                                ? (() => {
+                                    const restante = parseFloat(mat.cantidadRestante || '0');
+                                    const cantidadFrasco = parseFloat(mat.cantidad || '1');
+                                    return cantidadFrasco > 0 ? Math.floor(restante / cantidadFrasco) : 0;
+                                  })() + ' ' + t.units
+                                : (mat.cantidad || '-') + ' ' + t.units}
+                          </Text>
+                        </View>
+                        <View style={styles.detalleFila}>
+                          <Text style={styles.detalleLabel}>{t.remaining}</Text>
                           <Text style={styles.detalleValor}>
                             {typeof mat.cantidadRestante !== 'undefined' 
-                              ? mat.cantidadRestante + (mat.categoria === 'Pintura' ? 'ml' : 'g')
+                              ? mat.cantidadRestante + (() => {
+                                  const categoria = mat.categoria || 'Filamento';
+                                  switch (categoria) {
+                                    case 'Filamento':
+                                    case 'Resina':
+                                      return 'g';
+                                    case 'Pintura':
+                                      return 'ml';
+                                    case 'Aros de llavero':
+                                    default:
+                                      return ' ' + t.units;
+                                  }
+                                })()
                               : '-'
                             }
                           </Text>
                         </View>
                         <View style={styles.detalleFila}>
-                          <Text style={styles.detalleLabel}>Stock:</Text>
-                          <Text style={styles.detalleValor}>{mat.cantidadDisponible || mat.cantidad || '-'} unidades</Text>
-                        </View>
-                        <View style={styles.detalleFila}>
-                          <Text style={styles.detalleLabel}>Ingresado el:</Text>
+                          <Text style={styles.detalleLabel}>{t.registeredOn}</Text>
                           <Text style={styles.detalleValor}>
                             {mat.fechaRegistro ? new Date(mat.fechaRegistro).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                           </Text>
@@ -278,21 +301,35 @@ const InventoryScreen: React.FC = () => {
           >
             <View style={styles.modalOverlay}>
               <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>⚠️ Eliminar material</Text>
+                <Text style={styles.modalTitle}>⚠️ {t.deleteMaterial}</Text>
                 <Text style={styles.modalMessage}>
-                  ¿Estás seguro de que quieres eliminar el material "{materialAEliminar?.nombre}"?
+                  {t.confirmDeleteMaterialMessage}
                 </Text>
                 <View style={styles.modalButtons}>
                   <TouchableOpacity onPress={() => setShowDeleteAlert(false)} style={styles.modalButtonCancel}>
-                    <Text style={styles.modalButtonTextCancel}>Cancelar</Text>
+                    <Text style={styles.modalButtonTextCancel}>{t.cancel}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleEliminarMaterial} style={styles.modalButtonDelete}>
-                    <Text style={styles.modalButtonTextDelete}>Eliminar</Text>
+                    <Text style={styles.modalButtonTextDelete}>{t.delete}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
           </Modal>
+        )}
+        {materialesAgotados.length > 0 && (
+          <View style={{ marginTop: 32 }}>
+            <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>{t.outOfStock}</Text>
+            {materialesAgotados.map((mat) => (
+              <View key={mat.id} style={[styles.materialCapsula, { opacity: 0.5 }]}> 
+                <View style={[styles.colorCirculo, { backgroundColor: mat.color || '#00e676' }]} />
+                <View style={styles.materialDetalles}>
+                  <Text style={[styles.detalleLabel, { color: '#e53935' }]}>{mat.nombre}</Text>
+                  <Text style={styles.detalleValor}>{t.stock}: 0 {t.units}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
         )}
       </ScrollView>
   )

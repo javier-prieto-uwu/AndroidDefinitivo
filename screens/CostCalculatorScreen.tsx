@@ -5,6 +5,11 @@ import { getFirestore, collection, getDocs, addDoc, updateDoc, doc, deleteDoc } 
 import { auth, app } from '../api/firebase';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialList } from '../components/Material';
+import { useMateriales } from '../hooks';
+import { useCostCalculator } from '../hooks/useCostCalculator';
+import { useLanguage } from '../utils/LanguageProvider';
+import translations from '../utils/locales';
 
 const db = getFirestore(app);
 
@@ -65,13 +70,13 @@ const MaterialMultipleSelector: React.FC<{
           </Text>
           <Text style={{ color: '#ffd600', fontSize: 8 }}>
             ${(() => {
-              const categoria = mat.categoria || 'Filamento';
+              const categoria = mat.categoria || t.filament;
               switch (categoria) {
-                case 'Pintura':
-                case 'Aros de llavero':
+                case t.paint:
+                case t.keychainRings:
                   return mat.precio || '0';
-                case 'Filamento':
-                case 'Resina':
+                case t.filament:
+                case t.resin:
                 default:
                   return mat.precioBobina || mat.precio || '0';
               }
@@ -82,15 +87,18 @@ const MaterialMultipleSelector: React.FC<{
     </TouchableOpacity>
   );
 
+  const { lang } = useLanguage();
+  const t = translations[lang];
+
   // Función para obtener la unidad según el tipo de material
   const getUnidadMaterial = (categoria: string) => {
     switch (categoria) {
-      case 'Filamento':
-      case 'Resina':
+      case t.filament:
+      case t.resin:
         return 'g';
-      case 'Pintura':
+      case t.paint:
         return 'ml';
-      case 'Aros de llavero':
+      case t.keychainRings:
         return ' unidades';
       default:
         // Para categorías personalizadas, usar unidades por defecto
@@ -101,12 +109,12 @@ const MaterialMultipleSelector: React.FC<{
   // Función para obtener el campo de cantidad según el tipo de material
   const getCampoCantidad = (categoria: string) => {
     switch (categoria) {
-      case 'Filamento':
-      case 'Resina':
+      case t.filament:
+      case t.resin:
         return 'gramosUtilizados';
-      case 'Pintura':
+      case t.paint:
         return 'cantidadPintura';
-      case 'Aros de llavero':
+      case t.keychainRings:
         return 'cantidadLlaveros';
       default:
         return 'cantidadUtilizada';
@@ -116,28 +124,28 @@ const MaterialMultipleSelector: React.FC<{
   // Función para obtener el label según el tipo de material
   const getLabelCantidad = (categoria: string) => {
     switch (categoria) {
-      case 'Filamento':
-      case 'Resina':
-        return 'Gramos utilizados';
-      case 'Pintura':
-        return 'Mililitros utilizados';
-      case 'Aros de llavero':
-        return 'Cantidad de llaveros';
+      case t.filament:
+      case t.resin:
+        return t.usedGrams;
+      case t.paint:
+        return t.usedMl;
+      case t.keychainRings:
+        return t.usedQuantity;
       default:
-        return 'Cantidad utilizada';
+        return t.usedQuantity;
     }
   };
 
   // Función para obtener el placeholder según el tipo de material
   const getPlaceholderCantidad = (categoria: string) => {
     switch (categoria) {
-      case 'Filamento':
-      case 'Resina':
-        return 'Ej: 20';
-      case 'Pintura':
-        return 'Ej: 50';
-      case 'Aros de llavero':
-        return 'Ej: 5';
+      case t.filament:
+      case t.resin:
+        return t.gramsExample;
+      case t.paint:
+        return t.quantityExample;
+      case t.keychainRings:
+        return t.unitsExample;
       default:
         return 'Ej: 1';
     }
@@ -150,38 +158,38 @@ const MaterialMultipleSelector: React.FC<{
     const cantidad = material[campoCantidad] || '0';
     
     switch (categoria) {
-      case 'Filamento':
-      case 'Resina':
+      case t.filament:
+      case t.resin:
         return {
           precio: material.precioBobina || material.precio || '0.00',
           peso: material.pesoBobina || material.peso || '0',
           unidad: 'gramos',
-          labelPeso: 'Peso de la bobina',
-          labelCosto: 'Costo del filamento'
+          labelPeso: t.bobbinWeight,
+          labelCosto: t.materialCost
         };
-      case 'Pintura':
+      case t.paint:
         return {
           precio: material.precio || '0.00',
           peso: material.cantidad || '0', // Usar cantidad total inicial, no cantidadPintura
           unidad: 'ml',
-          labelPeso: 'Cantidad total de pintura',
-          labelCosto: 'Costo de la pintura'
+          labelPeso: t.totalQuantity,
+          labelCosto: t.materialCost
         };
-      case 'Aros de llavero':
+      case t.keychainRings:
         return {
           precio: material.precio || '0.00',
           peso: material.cantidad || '0',
           unidad: 'unidades',
-          labelPeso: 'Cantidad disponible',
-          labelCosto: 'Costo de los llaveros'
+          labelPeso: t.availableQuantity,
+          labelCosto: t.materialCost
         };
       default:
         return {
           precio: material.precio || '0.00',
           peso: material.cantidad || '0',
           unidad: 'unidades',
-          labelPeso: 'Cantidad restante',
-          labelCosto: 'Costo del material'
+          labelPeso: t.remainingQuantity,
+          labelCosto: t.materialCost
         };
     }
   };
@@ -223,41 +231,35 @@ const MaterialMultipleSelector: React.FC<{
     const cantidadUtilizada = parseFloat(materialSeleccionado[campoCantidad] || '0');
     
     switch (categoria) {
-      case 'Filamento':
-      case 'Resina':
+      case t.filament: {
         const precioBobina = parseFloat(materialSeleccionado.precioBobina || materialSeleccionado.precio || '0');
         const pesoBobina = parseFloat(materialSeleccionado.pesoBobina || materialSeleccionado.peso || '0');
-        if (precioBobina && pesoBobina && cantidadUtilizada) {
-          const costoPorGramo = precioBobina / pesoBobina;
-          const costo = costoPorGramo * cantidadUtilizada;
-          return costo.toFixed(2);
-        }
-        break;
-      case 'Pintura':
+        if (!precioBobina || !pesoBobina || !cantidadUtilizada || pesoBobina <= 0) return '0.00';
+        const costoPorGramo = precioBobina / pesoBobina;
+        const costoFilamento = costoPorGramo * cantidadUtilizada;
+        return isNaN(costoFilamento) || !isFinite(costoFilamento) ? '0.00' : costoFilamento.toFixed(2);
+      }
+      case t.paint: {
         const precioPintura = parseFloat(materialSeleccionado.precio || '0');
-        const cantidadTotalPintura = parseFloat(materialSeleccionado.cantidad || '0'); // Cantidad total inicial
-        const mlUtilizados = parseFloat(materialSeleccionado.cantidadPintura || '0'); // ML utilizados
-        if (precioPintura && cantidadTotalPintura && mlUtilizados) {
-          const costoPorMl = precioPintura / cantidadTotalPintura;
-          const costo = costoPorMl * mlUtilizados;
-          return costo.toFixed(2);
-        }
-        break;
-      case 'Aros de llavero':
+        const cantidadTotalPintura = parseFloat(materialSeleccionado.cantidad || '0');
+        const mlUtilizados = parseFloat(materialSeleccionado.cantidadPintura || '0');
+        if (!precioPintura || !cantidadTotalPintura || !mlUtilizados || cantidadTotalPintura <= 0) return '0.00';
+        const costoPorMl = precioPintura / cantidadTotalPintura;
+        const costoPintura = costoPorMl * mlUtilizados;
+        return isNaN(costoPintura) || !isFinite(costoPintura) ? '0.00' : costoPintura.toFixed(2);
+      }
+      case t.keychainRings: {
         const precioLlavero = parseFloat(materialSeleccionado.precio || '0');
-        if (precioLlavero && cantidadUtilizada) {
-          // Para llaveros: cantidad * precio unitario
-          const costo = precioLlavero * cantidadUtilizada;
-          return costo.toFixed(2);
-        }
-        break;
-      default:
+        const cantidadUtilizada = parseFloat(materialSeleccionado.cantidadLlaveros || '0');
+        const costoLlaveros = precioLlavero * cantidadUtilizada;
+        return isNaN(costoLlaveros) || !isFinite(costoLlaveros) ? '0.00' : costoLlaveros.toFixed(2);
+      }
+      default: {
         const precio = parseFloat(materialSeleccionado.precio || '0');
-        if (precio && cantidadUtilizada) {
-          // Para otros materiales: cantidad * precio unitario
-          const costo = precio * cantidadUtilizada;
-          return costo.toFixed(2);
-        }
+        const cantidadUtilizada = parseFloat(materialSeleccionado.cantidadUtilizada || '0');
+        const costoDefault = precio * cantidadUtilizada;
+        return isNaN(costoDefault) || !isFinite(costoDefault) ? '0.00' : costoDefault.toFixed(2);
+      }
     }
     return '0.00';
   };
@@ -357,87 +359,49 @@ const MaterialMultipleSelector: React.FC<{
 };
 
 const CostCalculatorScreen: React.FC = () => {
-  // Estado único para todo el cálculo, listo para guardar en base de datos
-  const [calculo, setCalculo] = useState({
-    nombre: '',
-    usuario: '',
-    materialSeleccionado: {
-      id: '',
-      nombre: '',
-      tipo: '',
-      subtipo: '',
-      color: '',
-    },
-    materialesMultiples: [],
-    detallesImpresion: {
-      relleno: '',
-      tiempoImpresion: '',
-      temperatura: '',
-      velocidad: '',
-      alturaCapa: '',
-      notas: '',
-    },
-    filamento: {
-      tipo: '',
-      subtipo: '',
-      precioBobina: '',
-      pesoBobina: '',
-      gramosUtilizados: '0',
-      costoFilamento: '0',
-      costoMaterialSolo: '0',
-    },
-    manoObra: {
-      preparacionTiempo: '',
-      preparacionCosto: '',
-      costoTotalManoObra: '0',
-    },
-    avanzados: {
-      arosLlavero: '',
-      imanes: '',
-      otrosMateriales: '',
-      consumoKwh: '',
-      costoKwh: '',
-      costoLuz: '0',
-      horasimpresion: '0',
-      totalMaterialesExtra: '0',
-    },
-    fecha: new Date().toISOString(),  
-  });
+  const { lang } = useLanguage();
+  const t = translations[lang];
+  // Usar hooks para materiales y cálculo de costos
+  const { materiales: materialesGuardados, loading: cargandoMateriales, error: errorMateriales } = useMateriales();
+  const {
+    calculo,
+    setCalculo,
+    esMultifilamento,
+    setEsMultifilamento,
+    cantidadMateriales,
+    setCantidadMateriales,
+    limpiarFormulario: limpiarFormularioHook,
+    calcularCostoFilamento: calcularCostoFilamentoHook,
+    calcularManoObra: calcularManoObraHook,
+    calcularAvanzado: calcularAvanzadoHook,
+    getTotal: getTotalHook,
+    getProduccion: getProduccionHook,
+  } = useCostCalculator({ materialesGuardados, proyectos: [] });
 
-  // Estado para controlar si es multifilamento
-  const [esMultifilamento, setEsMultifilamento] = useState(false);
-  const [cantidadMateriales, setCantidadMateriales] = useState(1);
-
-  // Estado para almacenar los cálculos guardados
-  const [calculosGuardados, setCalculosGuardados] = useState<any[]>([]);
-
-  // definimos por defecto que el menu de mostrar avanzado se va a mentener apagado hasta que se llame la funcion
-  const [mostrarAvanzado, setMostrarAvanzado] = useState(false);
-
-  // Estado para mostrar/ocultar detalles de impresión
-  const [mostrarDetallesImpresion, setMostrarDetallesImpresion] = useState(false);
-
-  // Estado para materiales guardados reales
-  const [materialesGuardados, setMaterialesGuardados] = useState<any[]>([]);
-  const [cargandoMateriales, setCargandoMateriales] = useState(false);
-  const [errorMateriales, setErrorMateriales] = useState<string | null>(null);
-  const [verMasMateriales, setVerMasMateriales] = useState(false);
-  const [loadingMateriales, setLoadingMateriales] = useState(true);
-
-  // Estado para el material seleccionado
+  // Estados locales que no están en el hook
   const [materialSeleccionado, setMaterialSeleccionado] = useState('');
-
-  // Estados para alertas personalizadas
+  const [verMasMateriales, setVerMasMateriales] = useState(false);
+  const [mostrarDetallesImpresion, setMostrarDetallesImpresion] = useState(false);
+  const [mostrarAvanzado, setMostrarAvanzado] = useState(false);
+  const [porcentajeGanancia, setPorcentajeGanancia] = useState(30);
   const [showAlert, setShowAlert] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('info');
+  const [descontarCantidad, setDescontarCantidad] = useState(true);
+  const [descontarCantidadMultiples, setDescontarCantidadMultiples] = useState(true);
 
-  const [porcentajeGanancia, setPorcentajeGanancia] = useState(100);
+  // Estados para proyectos
+  const [proyectos, setProyectos] = useState<Proyecto[]>([]);
+  const [proyectoSeleccionado, setProyectoSeleccionado] = useState<Proyecto | null>(null);
+  const [crearProyectoModal, setCrearProyectoModal] = useState(false);
+  const [nuevoProyectoNombre, setNuevoProyectoNombre] = useState('');
+  const [proyectoAEliminar, setProyectoAEliminar] = useState<Proyecto | null>(null);
+  const [modalEliminarProyecto, setModalEliminarProyecto] = useState(false);
 
-  const tiposFilamento = [
-    'PLA', 'ABS', 'PETG', 'TPU', 'Nylon', 'Resina', 'HIPS', 
-    'PC (Policarbonato)', 'Filamento Flexible', 'Filamento con Madera'
+    const tiposFilamento = [
+    t.pla, t.abs, t.petg, t.tpu, t.nylon, t.resin, t.hips,
+    t.pc, t.flexible, t.wood
   ];
 
   // Subtipos de filamento (igual que en agregarM)
@@ -458,30 +422,7 @@ const CostCalculatorScreen: React.FC = () => {
     { tipo: 'Conductivo', subtipos: ['Normal'] },
   ];
 
-  // Leer materiales desde Firestore al montar y cada vez que la pantalla se enfoque
-  useFocusEffect(
-    React.useCallback(() => {
-      const cargarMateriales = async () => {
-        setLoadingMateriales(true);
-        const user = auth.currentUser;
-        if (!user) {
-          setMaterialesGuardados([]);
-          setLoadingMateriales(false);
-          return;
-        }
-        try {
-          const snapshot = await getDocs(collection(db, 'usuarios', user.uid, 'materiales'));
-          const mats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setMaterialesGuardados(mats);
-        } catch (error) {
-          setMaterialesGuardados([]);
-        } finally {
-          setLoadingMateriales(false);
-        }
-      };
-      cargarMateriales();
-    }, [])
-  );
+  // El hook useMateriales ya maneja la carga automática de materiales
 
   // Cargar proyectos al montar
   useEffect(() => {
@@ -579,7 +520,7 @@ const CostCalculatorScreen: React.FC = () => {
           case 'Resina':
           default:
             precioCampo = mat.precioBobina || mat.precio || '';
-            cantidadCampo = mat.pesoBobina || mat.peso || '';
+            cantidadCampo = mat.peso || '';
             break;
         }
         
@@ -607,333 +548,29 @@ const CostCalculatorScreen: React.FC = () => {
     }
   };
 
-  // Cálculo de filamento optimizado
+  // Cálculo de filamento optimizado - USAR HOOK
   const calcularCostoFilamento = () => {
-    if (esMultifilamento && calculo.materialesMultiples?.length > 0) {
-      // Calcular costo total de múltiples materiales
-      const costoTotal = calculo.materialesMultiples.reduce((total, material) => {
-        if (!material) return total;
-        
-        const categoria = material.categoria;
-        let costo = 0;
-        
-        switch (categoria) {
-          case 'Filamento':
-          case 'Resina':
-            if (material.precioBobina && material.pesoBobina && material.gramosUtilizados) {
-              const costoPorGramo = parseFloat(material.precioBobina) / parseFloat(material.pesoBobina);
-              costo = costoPorGramo * parseFloat(material.gramosUtilizados);
-            }
-            break;
-          case 'Pintura':
-            if (material.precio && material.cantidad && material.cantidadPintura) {
-              const cantidadTotalPintura = parseFloat(material.cantidad); // Cantidad total inicial
-              const mlUtilizados = parseFloat(material.cantidadPintura); // ML utilizados
-              const costoPorMl = parseFloat(material.precio) / cantidadTotalPintura;
-              costo = costoPorMl * mlUtilizados;
-            }
-            break;
-          case 'Aros de llavero':
-            if (material.precio && material.cantidadLlaveros) {
-              // Para llaveros: cantidad * precio unitario
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadLlaveros);
-            }
-            break;
-          default:
-            if (material.precio && material.cantidadUtilizada) {
-              // Para categorías personalizadas: cantidad * precio unitario
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadUtilizada);
-            }
-        }
-        return total + costo;
-      }, 0);
-      
-      setCalculo(prev => ({
-        ...prev,
-        filamento: {
-          ...prev.filamento,
-          costoFilamento: costoTotal.toFixed(2),
-          costoMaterialSolo: costoTotal.toFixed(2),
-        }
-      }));
-    } else {
-      // Cálculo para material único según el tipo
-      const mat = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id);
-      if (mat) {
-        const categoria = mat.categoria;
-        let costo = 0;
-        
-        switch (categoria) {
-          case 'Filamento':
-          case 'Resina': {
-            const { precioBobina, pesoBobina, gramosUtilizados } = calculo.filamento;
-            if (precioBobina && pesoBobina && gramosUtilizados) {
-              const costoPorGramo = parseFloat(precioBobina) / parseFloat(pesoBobina);
-              costo = costoPorGramo * parseFloat(gramosUtilizados);
-            }
-            break;
-          }
-          case 'Pintura': {
-            const precioPintura = parseFloat(mat.precio || '0');
-            const cantidadTotalPintura = parseFloat(mat.cantidad || '0');
-            const mlUtilizados = parseFloat(calculo.filamento.gramosUtilizados || '0');
-            if (precioPintura && cantidadTotalPintura && mlUtilizados) {
-              const costoPorMl = precioPintura / cantidadTotalPintura;
-              costo = costoPorMl * mlUtilizados;
-            }
-            break;
-          }
-          case 'Aros de llavero': {
-            const precioLlavero = parseFloat(mat.precio || '0');
-            const cantidadLlaveros = parseFloat(calculo.filamento.gramosUtilizados || '0');
-            if (precioLlavero && cantidadLlaveros) {
-              costo = precioLlavero * cantidadLlaveros;
-            }
-            break;
-          }
-          default: {
-            // Para categorías personalizadas
-            const precio = parseFloat(mat.precio || '0');
-            const cantidad = parseFloat(calculo.filamento.gramosUtilizados || '0');
-            if (precio && cantidad) {
-              costo = precio * cantidad;
-            }
-          }
-        }
-        
-      setCalculo(prev => ({
-        ...prev,
-        filamento: {
-          ...prev.filamento,
-          costoFilamento: costo.toFixed(2),
-          costoMaterialSolo: costo.toFixed(2),
-        }
-      }));
-      }
-    }
+    calcularCostoFilamentoHook();
   };
 
-  // Cálculo de mano de obra optimizado
+  // Cálculo de mano de obra optimizado - USAR HOOK
   const calcularManoObra = () => {
-    const horas = parseFloat(calculo.manoObra.preparacionTiempo) || 0;
-    const costoPorHora = parseFloat(calculo.manoObra.preparacionCosto) || 0;
-    const total = horas * costoPorHora;
-    setCalculo(prev => ({
-      ...prev,
-      manoObra: {
-        ...prev.manoObra,
-        costoTotalManoObra: total.toFixed(2)
-      }
-    }));
+    calcularManoObraHook();
   };
 
-  // Cálculo de materiales extra y luz optimizado
+  // Cálculo de materiales extra y luz optimizado - USAR HOOK
   const calcularAvanzado = () => {
-    const aros = parseFloat(calculo.avanzados.arosLlavero) || 0;
-    const otros = parseFloat(calculo.avanzados.otrosMateriales) || 0;
-    const kwh = parseFloat(calculo.avanzados.consumoKwh) || 0;
-    const costoKwh = parseFloat(calculo.avanzados.costoKwh) || 0;
-    const horasimpresion = parseFloat(calculo.avanzados.horasimpresion) || 0;
-    const costoLuz = ((kwh / 1000) * costoKwh) * horasimpresion;
-    const totalMaterialesExtra = aros + otros;
-    setCalculo(prev => ({
-      ...prev,
-      avanzados: {
-        ...prev.avanzados,
-        costoLuz: costoLuz.toFixed(2),
-        totalMaterialesExtra: totalMaterialesExtra.toFixed(2),
-      }
-    }));
+    calcularAvanzadoHook();
   };
 
-  // Cálculo total optimizado
+  // Cálculo total optimizado - USAR HOOK
   const getTotal = () => {
-    let filamento = 0;
-    
-    if (esMultifilamento && calculo.materialesMultiples?.length > 0) {
-      filamento = calculo.materialesMultiples.reduce((total, material) => {
-        if (!material) return total;
-        
-        const categoria = material.categoria;
-        let costo = 0;
-        
-        switch (categoria) {
-          case 'Filamento':
-          case 'Resina':
-            if (material.precioBobina && material.pesoBobina && material.gramosUtilizados) {
-              const costoPorGramo = parseFloat(material.precioBobina) / parseFloat(material.pesoBobina);
-              costo = costoPorGramo * parseFloat(material.gramosUtilizados);
-            }
-            break;
-          case 'Pintura':
-            if (material.precio && material.cantidad && material.cantidadPintura) {
-              const cantidadTotalPintura = parseFloat(material.cantidad); // Cantidad total inicial
-              const mlUtilizados = parseFloat(material.cantidadPintura); // ML utilizados
-              const costoPorMl = parseFloat(material.precio) / cantidadTotalPintura;
-              costo = costoPorMl * mlUtilizados;
-            }
-            break;
-          case 'Aros de llavero':
-            if (material.precio && material.cantidadLlaveros) {
-              // Para llaveros: cantidad * precio unitario
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadLlaveros);
-            }
-            break;
-          default:
-            if (material.precio && material.cantidadUtilizada) {
-              // Para categorías personalizadas: cantidad * precio unitario
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadUtilizada);
-            }
-        }
-        return total + costo;
-      }, 0);
-    } else {
-      // Para material único, calcular según el tipo
-      const mat = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id);
-      if (mat) {
-        const categoria = mat.categoria;
-        let costo = 0;
-        
-        switch (categoria) {
-          case 'Filamento':
-          case 'Resina':
-            const { precioBobina, pesoBobina, gramosUtilizados } = calculo.filamento;
-            if (precioBobina && pesoBobina && gramosUtilizados) {
-              const costoPorGramo = parseFloat(precioBobina) / parseFloat(pesoBobina);
-              costo = costoPorGramo * parseFloat(gramosUtilizados);
-            }
-            break;
-          case 'Pintura':
-            const precioPintura = parseFloat(calculo.filamento.precioBobina || '0');
-            const cantidadTotalPintura = parseFloat(mat.cantidad || '0');
-            const mlUtilizados = parseFloat(calculo.filamento.gramosUtilizados || '0');
-            if (precioPintura && cantidadTotalPintura && mlUtilizados) {
-              const costoPorMl = precioPintura / cantidadTotalPintura;
-              costo = costoPorMl * mlUtilizados;
-            }
-            break;
-          case 'Aros de llavero':
-            const precioLlavero = parseFloat(calculo.filamento.precioBobina || '0');
-            const cantidadLlaveros = parseFloat(calculo.filamento.gramosUtilizados || '0');
-            if (precioLlavero && cantidadLlaveros) {
-              costo = precioLlavero * cantidadLlaveros;
-            }
-            break;
-          default:
-            // Para categorías personalizadas
-            const precio = parseFloat(calculo.filamento.precioBobina || '0');
-            const cantidad = parseFloat(calculo.filamento.gramosUtilizados || '0');
-            if (precio && cantidad) {
-              costo = precio * cantidad;
-            }
-        }
-        filamento = costo;
-      } else {
-        filamento = parseFloat(calculo.filamento.costoFilamento) || 0;
-      }
-    }
-    
-    const manoObra = parseFloat(calculo.manoObra.costoTotalManoObra) || 0;
-    let total = filamento + manoObra;
-    
-    if (mostrarAvanzado) {
-      const extra = parseFloat(calculo.avanzados.totalMaterialesExtra) || 0;
-      const luz = parseFloat(calculo.avanzados.costoLuz) || 0;
-      total += extra + luz;
-    }
-    return total.toFixed(2);
+    return getTotalHook();
   };
 
+  // Cálculo de producción - USAR HOOK
   const getProduccion = () => {
-    let filamento = 0;
-    
-    if (esMultifilamento && calculo.materialesMultiples?.length > 0) {
-      filamento = calculo.materialesMultiples.reduce((total, material) => {
-        if (!material) return total;
-        
-        const categoria = material.categoria;
-        let costo = 0;
-        
-        switch (categoria) {
-          case 'Filamento':
-          case 'Resina':
-            if (material.precioBobina && material.pesoBobina && material.gramosUtilizados) {
-              const costoPorGramo = parseFloat(material.precioBobina) / parseFloat(material.pesoBobina);
-              costo = costoPorGramo * parseFloat(material.gramosUtilizados);
-            }
-            break;
-          case 'Pintura':
-            if (material.precio && material.cantidad && material.cantidadPintura) {
-              const cantidadTotalPintura = parseFloat(material.cantidad); // Cantidad total inicial
-              const mlUtilizados = parseFloat(material.cantidadPintura); // ML utilizados
-              const costoPorMl = parseFloat(material.precio) / cantidadTotalPintura;
-              costo = costoPorMl * mlUtilizados;
-            }
-            break;
-          case 'Aros de llavero':
-            if (material.precio && material.cantidadLlaveros) {
-              // Para llaveros: cantidad * precio unitario
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadLlaveros);
-            }
-            break;
-          default:
-            if (material.precio && material.cantidadUtilizada) {
-              // Para categorías personalizadas: cantidad * precio unitario
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadUtilizada);
-            }
-        }
-        return total + costo;
-      }, 0);
-    } else {
-      // Para material único, calcular según el tipo
-      const mat = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id);
-      if (mat) {
-        const categoria = mat.categoria;
-        let costo = 0;
-        
-        switch (categoria) {
-          case 'Filamento':
-          case 'Resina':
-            const { precioBobina, pesoBobina, gramosUtilizados } = calculo.filamento;
-            if (precioBobina && pesoBobina && gramosUtilizados) {
-              const costoPorGramo = parseFloat(precioBobina) / parseFloat(pesoBobina);
-              costo = costoPorGramo * parseFloat(gramosUtilizados);
-            }
-            break;
-          case 'Pintura':
-            const precioPintura = parseFloat(calculo.filamento.precioBobina || '0');
-            const cantidadTotalPintura = parseFloat(mat.cantidad || '0');
-            const mlUtilizados = parseFloat(calculo.filamento.gramosUtilizados || '0');
-            if (precioPintura && cantidadTotalPintura && mlUtilizados) {
-              const costoPorMl = precioPintura / cantidadTotalPintura;
-              costo = costoPorMl * mlUtilizados;
-            }
-            break;
-          case 'Aros de llavero':
-            const precioLlavero = parseFloat(calculo.filamento.precioBobina || '0');
-            const cantidadLlaveros = parseFloat(calculo.filamento.gramosUtilizados || '0');
-            if (precioLlavero && cantidadLlaveros) {
-              costo = precioLlavero * cantidadLlaveros;
-            }
-            break;
-          default:
-            // Para categorías personalizadas
-            const precio = parseFloat(calculo.filamento.precioBobina || '0');
-            const cantidad = parseFloat(calculo.filamento.gramosUtilizados || '0');
-            if (precio && cantidad) {
-              costo = precio * cantidad;
-            }
-        }
-        filamento = costo;
-      } else {
-        filamento = parseFloat(calculo.filamento.costoMaterialSolo) || 0;
-      }
-    }
-    
-    const manoObra = parseFloat(calculo.manoObra.costoTotalManoObra) || 0;
-    const extra = parseFloat(calculo.avanzados.totalMaterialesExtra) || 0;
-    const luz = parseFloat(calculo.avanzados.costoLuz) || 0;
-    return (filamento + manoObra + extra + luz).toFixed(2);
+    return getProduccionHook();
   };
 
   // Guardar cálculo en Firestore optimizado
@@ -981,7 +618,7 @@ const CostCalculatorScreen: React.FC = () => {
       showCustomAlert('✅ ¡Cálculo guardado!', `El cálculo "${calculo.nombre}" se guardó exitosamente.\n\n💵 Total: $${getTotal()} MXN\n\nPuedes consultar este cálculo en el historial de impresiones.`, 'success');
       
       // Limpiar formulario
-      limpiarFormulario();
+      limpiarFormularioHook();
       
     } catch (error) {
       showCustomAlert('Error', 'No se pudo guardar el cálculo. Intenta de nuevo.', 'error');
@@ -992,7 +629,10 @@ const CostCalculatorScreen: React.FC = () => {
   const actualizarCantidadesMateriales = async () => {
     const user = auth.currentUser;
     if (!user) return;
-    if (!descontarCantidad) return; // Si no se debe descontar, salir
+    
+    // Verificar si se debe descontar según el tipo de material
+    if (esMultifilamento && !descontarCantidadMultiples) return; // Si no se debe descontar múltiples materiales, salir
+    if (!esMultifilamento && !descontarCantidad) return; // Si no se debe descontar material único, salir
 
     if (esMultifilamento && calculo.materialesMultiples?.length > 0) {
       // Restar cantidades de múltiples materiales
@@ -1020,25 +660,41 @@ const CostCalculatorScreen: React.FC = () => {
         if (!isNaN(cantidadUsada) && cantidadUsada > 0) {
           const mat = materialesGuardados.find((m: any) => m.id === material.id);
           if (mat) {
-            // Obtener la cantidad actual según el tipo de material
+            // Obtener la cantidad actual - SIEMPRE usar cantidadRestante si existe
             let cantidadActual = 0;
-            if (categoria === 'Filamento' || categoria === 'Resina') {
-              cantidadActual = parseFloat(mat.cantidadRestante ?? mat.pesoBobina ?? mat.peso ?? '0');
-            } else if (categoria === 'Pintura') {
-              cantidadActual = parseFloat(mat.cantidadRestante ?? mat.cantidad ?? '0');
+            if (typeof mat.cantidadRestante !== 'undefined' && mat.cantidadRestante !== null) {
+              cantidadActual = parseFloat(mat.cantidadRestante);
             } else {
-              // Para llaveros y categorías personalizadas
-              cantidadActual = parseFloat(mat.cantidadRestante ?? mat.cantidad ?? '0');
+              // Fallback para materiales antiguos que no tienen cantidadRestante
+              if (categoria === 'Filamento' || categoria === 'Resina') {
+                cantidadActual = parseFloat(mat.peso || '0');
+              } else if (categoria === 'Pintura') {
+                cantidadActual = parseFloat(mat.cantidad || '0');
+              } else {
+                cantidadActual = parseFloat(mat.cantidad || '0');
+              }
             }
             
             if (!isNaN(cantidadActual)) {
               let nuevaCantidadRestante = cantidadActual - cantidadUsada;
               if (nuevaCantidadRestante < 0) nuevaCantidadRestante = 0;
               
-              // Actualizar el inventario
+              let nuevaCantidadUnidades = 0;
+              if (categoria === 'Filamento' || categoria === 'Resina') {
+                const pesoBobina = parseFloat(mat.peso || '1'); // gramos por rollo
+                nuevaCantidadUnidades = pesoBobina > 0 ? Math.floor(nuevaCantidadRestante / pesoBobina) : 0;
+              } else if (categoria === 'Pintura') {
+                const mlPorFrasco = parseFloat(mat.cantidad || '1'); // ml por frasco
+                nuevaCantidadUnidades = mlPorFrasco > 0 ? Math.floor(nuevaCantidadRestante / mlPorFrasco) : 0;
+              } else {
+                // Para materiales por unidades (llaveros, etc.)
+                nuevaCantidadUnidades = Math.floor(nuevaCantidadRestante);
+              }
+              
+              // Actualizar el inventario - NO actualizar cantidadInicial, solo cantidadRestante y cantidad
               await updateDoc(
                 doc(db, 'usuarios', user.uid, 'materiales', material.id),
-                { cantidadRestante: nuevaCantidadRestante.toString() }
+                { cantidadRestante: nuevaCantidadRestante.toString(), cantidad: nuevaCantidadUnidades.toString() }
               );
               
               // Guardar la cantidad restante histórica en el material del cálculo
@@ -1049,31 +705,48 @@ const CostCalculatorScreen: React.FC = () => {
       }
     } else if (!esMultifilamento && calculo.materialSeleccionado.id && calculo.filamento.gramosUtilizados) {
       // Restar cantidades de material único
-        const materialId = calculo.materialSeleccionado.id;
-        const gramosUsados = parseFloat(calculo.filamento.gramosUtilizados);
-        if (!isNaN(gramosUsados) && gramosUsados > 0) {
-          const mat = materialesGuardados.find((m: any) => m.id === materialId);
+      const materialId = calculo.materialSeleccionado.id;
+      const gramosUsados = parseFloat(calculo.filamento.gramosUtilizados);
+      if (!isNaN(gramosUsados) && gramosUsados > 0) {
+        const mat = materialesGuardados.find((m: any) => m.id === materialId);
         if (mat) {
-          // Obtener la cantidad actual según el tipo de material
+          // Obtener la cantidad actual - SIEMPRE usar cantidadRestante si existe
           const categoria = mat.categoria;
           let cantidadActual = 0;
-          if (categoria === 'Filamento' || categoria === 'Resina') {
-            cantidadActual = parseFloat(mat.cantidadRestante ?? mat.pesoBobina ?? mat.peso ?? '0');
-          } else if (categoria === 'Pintura') {
-            cantidadActual = parseFloat(mat.cantidadRestante ?? mat.cantidad ?? '0');
+          if (typeof mat.cantidadRestante !== 'undefined' && mat.cantidadRestante !== null) {
+            cantidadActual = parseFloat(mat.cantidadRestante);
           } else {
-            cantidadActual = parseFloat(mat.cantidadRestante ?? mat.cantidad ?? '0');
+            // Fallback para materiales antiguos que no tienen cantidadRestante
+            if (categoria === 'Filamento' || categoria === 'Resina') {
+              cantidadActual = parseFloat(mat.peso || '0');
+            } else if (categoria === 'Pintura') {
+              cantidadActual = parseFloat(mat.cantidad || '0');
+            } else {
+              cantidadActual = parseFloat(mat.cantidad || '0');
+            }
           }
           
           if (!isNaN(cantidadActual)) {
             let nuevaCantidadRestante = cantidadActual - gramosUsados;
-              if (nuevaCantidadRestante < 0) nuevaCantidadRestante = 0;
+            if (nuevaCantidadRestante < 0) nuevaCantidadRestante = 0;
             
-            // Actualizar el inventario
-              await updateDoc(
-                doc(db, 'usuarios', user.uid, 'materiales', materialId),
-                { cantidadRestante: nuevaCantidadRestante.toString() }
-              );
+            let nuevaCantidadUnidades = 0;
+            if (categoria === 'Filamento' || categoria === 'Resina') {
+              const pesoBobina = parseFloat(mat.peso || '1');
+              nuevaCantidadUnidades = pesoBobina > 0 ? Math.floor(nuevaCantidadRestante / pesoBobina) : 0;
+            } else if (categoria === 'Pintura') {
+              const mlPorFrasco = parseFloat(mat.cantidad || '1');
+              nuevaCantidadUnidades = mlPorFrasco > 0 ? Math.floor(nuevaCantidadRestante / mlPorFrasco) : 0;
+            } else {
+              // Para materiales por unidades (llaveros, etc.)
+              nuevaCantidadUnidades = Math.floor(nuevaCantidadRestante);
+            }
+            
+            // Actualizar el inventario - NO actualizar cantidadInicial, solo cantidadRestante y cantidad
+            await updateDoc(
+              doc(db, 'usuarios', user.uid, 'materiales', materialId),
+              { cantidadRestante: nuevaCantidadRestante.toString(), cantidad: nuevaCantidadUnidades.toString() }
+            );
             
             // Guardar la cantidad restante histórica en el material seleccionado
             setCalculo(prev => ({
@@ -1156,123 +829,9 @@ const CostCalculatorScreen: React.FC = () => {
     setShowAlert(true);
   };
 
-  const [proyectos, setProyectos] = useState<Proyecto[]>([]);
-  const [proyectoSeleccionado, setProyectoSeleccionado] = useState<Proyecto | null>(null);
-  const [crearProyectoModal, setCrearProyectoModal] = useState(false);
-  const [nuevoProyectoNombre, setNuevoProyectoNombre] = useState('');
-  const [proyectoAEliminar, setProyectoAEliminar] = useState<Proyecto | null>(null);
-  const [modalEliminarProyecto, setModalEliminarProyecto] = useState(false);
-
-  // Función para obtener la unidad según el tipo de material (para el componente principal)
-  const getUnidadMaterialPrincipal = (categoria: string) => {
-    switch (categoria) {
-      case 'Filamento':
-      case 'Resina':
-        return 'g';
-      case 'Pintura':
-        return 'ml';
-      case 'Aros de llavero':
-        return ' unidades';
-      default:
-        // Para categorías personalizadas, usar unidades por defecto
-        return ' unidades';
-    }
-  };
-
-  // Componente para renderizar material individual
-  const renderMaterialCard = (mat: any, isSelected: boolean, onPress: () => void) => (
-    <TouchableOpacity
-      key={mat.id}
-      style={{
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: isSelected ? '#00e676' : '#222',
-        borderColor: isSelected ? '#00e676' : '#333',
-        borderWidth: 2,
-        borderRadius: 16,
-        paddingVertical: 4,
-        paddingHorizontal: 8,
-        marginHorizontal: 4,
-        minHeight: 40,
-        maxWidth: '48%',
-      }}
-      onPress={onPress}
-    >
-      <View style={{
-        width: 14,
-        height: 14,
-        borderRadius: 7,
-        backgroundColor: mat.color || '#00e676',
-        borderWidth: 1,
-        borderColor: '#333',
-        marginRight: 6,
-      }} />
-      <View style={{ flexShrink: 1 }}>
-        <Text style={{
-          color: isSelected ? '#222' : '#fff',
-          fontWeight: isSelected ? 'bold' : 'normal',
-          fontSize: 12,
-          flexWrap: 'wrap',
-        }} numberOfLines={1} ellipsizeMode="tail">{mat.nombre}</Text>
-        <Text style={{ color: '#a0a0a0', fontSize: 10 }} numberOfLines={1} ellipsizeMode="tail">{mat.subtipo}</Text>
-        <View style={{ flexDirection: 'row', marginTop: 2 }}>
-          <Text style={{ color: '#00e676', fontSize: 9, marginRight: 8 }}>
-            Restante: {(typeof mat.cantidadRestante !== 'undefined' ? mat.cantidadRestante : mat.cantidad || '0')}
-          </Text>
-          <Text style={{ color: '#ffd600', fontSize: 9 }}>
-            ${(() => {
-              const categoria = mat.categoria || 'Filamento';
-              switch (categoria) {
-                case 'Pintura':
-                case 'Aros de llavero':
-                  return mat.precio || '0';
-                case 'Filamento':
-                case 'Resina':
-                default:
-                  return mat.precioBobina || mat.precio || '0';
-              }
-            })()}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  // Componente para renderizar grupo de materiales
-  const renderMaterialGroup = (tipo: string, materiales: any[]) => {
-    const filas = [];
-    for (let i = 0; i < materiales.length; i += 2) {
-      filas.push(materiales.slice(i, i + 2));
-    }
-
-  return (
-      <View key={tipo} style={{ marginBottom: 8 }}>
-        <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 15, marginBottom: 4 }}>{tipo}</Text>
-        {filas.map((fila, idx) => (
-          <View key={idx} style={{ flexDirection: 'row', marginBottom: 4, justifyContent: 'center', alignSelf: 'center', maxWidth: 340, width: '100%' }}>
-            {fila.map((mat) => renderMaterialCard(mat, materialSeleccionado === mat.id, () => handleSeleccionMaterial(mat.id)))}
-            {fila.length === 1 && <View style={{ flex: 1 }} />}
-          </View>
-        ))}
-      </View>
-    );
-  };
-
-  // Agrupar materiales por tipo
-  const agruparMaterialesPorTipo = () => {
-    const matsPorTipo: { [tipo: string]: any[] } = {};
-    materialesGuardados.forEach(mat => {
-      const tipo = mat.tipo || 'Sin tipo';
-      if (!matsPorTipo[tipo]) matsPorTipo[tipo] = [];
-      matsPorTipo[tipo].push(mat);
-    });
-    return matsPorTipo;
-  };
-
-  // Renderizar selector de materiales
+  // Renderizar selector de materiales usando el componente MaterialList
   const renderSelectorMateriales = () => {
-    if (loadingMateriales) {
+    if (cargandoMateriales) {
       return <ActivityIndicator size="small" color="#00e676" style={{ marginVertical: 10 }} />;
     }
     
@@ -1281,11 +840,19 @@ const CostCalculatorScreen: React.FC = () => {
     }
     
     if (materialesGuardados.length === 0) {
-      return <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 10 }}>No hay materiales guardados.</Text>;
+      return <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 10 }}>{t.noSavedMaterials}</Text>;
     }
     
-    return Object.entries(agruparMaterialesPorTipo()).map(([tipo, materiales]) => 
-      renderMaterialGroup(tipo, materiales)
+    const materialesAMostrar = verMasMateriales 
+      ? materialesGuardados 
+      : materialesGuardados.slice(0, 5);
+    
+    return (
+      <MaterialList
+        materiales={materialesAMostrar}
+        materialSeleccionado={materialSeleccionado}
+        onMaterialSelect={handleSeleccionMaterial}
+      />
     );
   };
 
@@ -1316,14 +883,13 @@ const CostCalculatorScreen: React.FC = () => {
           fontWeight: 'bold', 
           fontSize: 14 
         }}>
-          {verMasMateriales ? 'Ver menos...' : 'Ver más...'}
+          {verMasMateriales ? t.seeLess : t.seeMore}
         </Text>
       </TouchableOpacity>
     );
   };
 
-  // 1. Estado para controlar si se descuenta la cantidad
-  const [descontarCantidad, setDescontarCantidad] = useState(true);
+
 
   return (
     <KeyboardAvoidingView
@@ -1340,55 +906,55 @@ const CostCalculatorScreen: React.FC = () => {
 
         {/* Campo de nombre del cálculo */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>NOMBRE DEL CÁLCULO</Text>
-          <Text style={styles.label}>Nombre del proyecto o cálculo <Text style={styles.requiredText}>*</Text></Text>
+          <Text style={styles.sectionTitle}>{t.calculationName}</Text>
+          <Text style={styles.label}>{t.projectOrCalculationName} <Text style={styles.requiredText}>*</Text></Text>
           <TextInput
             style={[styles.input, !calculo.nombre.trim() && styles.inputRequired]}
             value={calculo.nombre}
             onChangeText={(text) => setCalculo(prev => ({ ...prev, nombre: text }))}
-            placeholder="Ej: Llavero personalizado, Pieza de repuesto, etc."
+            placeholder={t.projectNameExample}
             placeholderTextColor="#666"
           />
           {!calculo.nombre.trim() && (
-            <Text style={styles.requiredMessage}>El nombre del proyecto es obligatorio</Text>
+            <Text style={styles.requiredMessage}>{t.projectNameRequired}</Text>
           )}
         </View>
 
           {/* Nueva sección: Multifilamento/Multimaterial */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>MULTIFILAMENTO / MULTIMATERIAL</Text>
-            <Text style={styles.label}>¿Usar múltiples materiales/colores?</Text>
+            <Text style={styles.sectionTitle}>{t.multifilamentMultimaterial}</Text>
+            <Text style={styles.label}>{t.useMultipleMaterialsColors}</Text>
             
             <View style={{ flexDirection: 'row', marginBottom: 16 }}>
               <TouchableOpacity
                 style={[
                   styles.toggleButton,
-                  !esMultifilamento && styles.toggleButtonActive
+                  !esMultifilamento ? styles.toggleButtonActive : null
                 ]}
                 onPress={() => setEsMultifilamento(false)}
               >
                 <Text style={[
                   styles.toggleButtonText,
-                  !esMultifilamento && styles.toggleButtonTextActive
-                ]}>Material único</Text>
+                  !esMultifilamento ? styles.toggleButtonTextActive : null
+                ]}>{t.singleMaterial}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.toggleButton,
-                  esMultifilamento && styles.toggleButtonActive
+                  esMultifilamento ? styles.toggleButtonActive : null
                 ]}
                 onPress={() => setEsMultifilamento(true)}
               >
                 <Text style={[
                   styles.toggleButtonText,
-                  esMultifilamento && styles.toggleButtonTextActive
-                ]}>Múltiples materiales</Text>
+                  esMultifilamento ? styles.toggleButtonTextActive : null
+                ]}>{t.multipleMaterials}</Text>
               </TouchableOpacity>
             </View>
 
             {esMultifilamento && (
               <>
-                <Text style={styles.label}>Cantidad de materiales/colores diferentes:</Text>
+                <Text style={styles.label}>{t.differentMaterialsColorsQuantity}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                   <TouchableOpacity
                     style={styles.quantityButton}
@@ -1406,7 +972,7 @@ const CostCalculatorScreen: React.FC = () => {
                 </View>
                 
                 {/* Lista de materiales múltiples */}
-                <Text style={styles.label}>Materiales seleccionados:</Text>
+                <Text style={styles.label}>{t.selectedMaterials}</Text>
                 {Array.from({ length: cantidadMateriales }, (_, index) => (
                   <MaterialMultipleSelector
                     key={index}
@@ -1442,11 +1008,28 @@ const CostCalculatorScreen: React.FC = () => {
           </View>
           {/* Selección de proyecto/carpeta (mover aquí, justo después del nombre) */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>PROYECTO / CARPETA</Text>
+            <Text style={styles.sectionTitle}>{t.projectFolder}</Text>
             {proyectos.length === 0 ? (
-              <Text style={{ color: '#a0a0a0', marginBottom: 8 }}>No hay proyectos. Crea uno nuevo.</Text>
+              <Text style={{ color: '#a0a0a0', marginBottom: 8 }}>{t.noProjectsCreateNew}</Text>
             ) : (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                {/* Botón "Sin proyecto" para deseleccionar */}
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: !proyectoSeleccionado ? '#00e676' : '#222',
+                    borderColor: !proyectoSeleccionado ? '#00e676' : '#333',
+                    borderWidth: 2,
+                    borderRadius: 16,
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    marginRight: 8,
+                    marginBottom: 8,
+                  }}
+                  onPress={() => setProyectoSeleccionado(null)}
+                >
+                  <Text style={{ color: !proyectoSeleccionado ? '#222' : '#fff', fontWeight: 'bold' }}>{t.noProject}</Text>
+                </TouchableOpacity>
+                
                 {proyectos.map((proy) => (
                   <View key={proy.id} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8, marginBottom: 8 }}>
                     <TouchableOpacity
@@ -1477,7 +1060,7 @@ const CostCalculatorScreen: React.FC = () => {
               style={{ backgroundColor: '#181818', borderColor: '#00e676', borderWidth: 2, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' }}
               onPress={() => setCrearProyectoModal(true)}
             >
-              <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 14 }}>+ Nuevo proyecto</Text>
+              <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 14 }}>{t.newProject}</Text>
             </TouchableOpacity>
           </View>
 
@@ -1485,7 +1068,22 @@ const CostCalculatorScreen: React.FC = () => {
           {/* Información de Múltiples Materiales */}
           {esMultifilamento && calculo.materialesMultiples && calculo.materialesMultiples.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>MATERIALES SELECCIONADOS</Text>
+              <Text style={styles.sectionTitle}>{t.selectedMaterials}</Text>
+              
+              {/* Checkbox para controlar si se descuentan los materiales múltiples */}
+              <View style={styles.checkboxContainer}>
+                <TouchableOpacity
+                  style={styles.checkbox}
+                  onPress={() => setDescontarCantidadMultiples(!descontarCantidadMultiples)}
+                >
+                  {descontarCantidadMultiples && (
+                    <Ionicons name="checkmark" size={18} color="#00e676" />
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.checkboxLabel}>
+                  {t.discountMaterialsFromInventory}
+                </Text>
+              </View>
               {calculo.materialesMultiples.map((material, index) => (
                 material && (
                   <View key={index} style={[styles.materialInfoContainer, { marginBottom: 12, padding: 12, backgroundColor: '#222', borderRadius: 8 }]}>
@@ -1507,22 +1105,34 @@ const CostCalculatorScreen: React.FC = () => {
                         {(() => {
                           switch (material.categoria) {
                             case 'Pintura':
-                              return `Mililitros: ${material.cantidadPintura || '0'}ml`;
+                              return `${t.milliliters}: ${material.cantidadPintura || '0'}ml`;
                             case 'Aros de llavero':
-                              return `Cantidad: ${material.cantidadLlaveros || '0'} unidades`;
+                              return `${t.quantity}: ${material.cantidadLlaveros || '0'} ${t.units}`;
                             case 'Filamento':
                             case 'Resina':
                             default:
-                              return `Gramos: ${material.gramosUtilizados || '0'}g`;
+                              return `${t.grams}: ${material.gramosUtilizados || '0'}g`;
                           }
                         })()}
                       </Text>
-                      {/* Información contextual del material múltiple */}
-                      <Text style={[styles.materialInfoDetails, { color: '#00e676' }]}>
-                        Cantidad restante: {(typeof material.cantidadRestante !== 'undefined' ? material.cantidadRestante : material.cantidad || '0')}
-                      </Text>
+                                              {/* Información contextual del material múltiple */}
+                        <Text style={[styles.materialInfoDetails, { color: '#00e676' }]}>
+                          {t.remainingQuantity}: {(typeof material.cantidadRestante !== 'undefined' ? material.cantidadRestante : material.cantidad || '0')}{(() => {
+                            const categoria = material.categoria || 'Filamento';
+                            switch (categoria) {
+                              case 'Filamento':
+                              case 'Resina':
+                                return 'g';
+                              case 'Pintura':
+                                return 'ml';
+                              case 'Aros de llavero':
+                              default:
+                                return ' ' + t.units;
+                            }
+                          })()}
+                        </Text>
                       <Text style={[styles.materialInfoDetails, { color: '#ffd600' }]}>
-                        Precio: ${(() => {
+                        {t.price}: ${(() => {
                           const categoria = material.categoria || 'Filamento';
                           switch (categoria) {
                             case 'Pintura':
@@ -1546,68 +1156,68 @@ const CostCalculatorScreen: React.FC = () => {
         {/* Sección de Detalles de Impresión */}
         <View style={styles.section}>
           <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
-            <Text style={styles.sectionTitle}>DETALLES DE IMPRESIÓN</Text>
+            <Text style={styles.sectionTitle}>{t.printDetails}</Text>
             <TouchableOpacity
               style={styles.secondaryToggleBtn}
               onPress={() => setMostrarDetallesImpresion(!mostrarDetallesImpresion)}
             >
-              <Text style={styles.secondaryToggleText}>{mostrarDetallesImpresion ? 'Ocultar' : 'Mostrar'}</Text>
+              <Text style={styles.secondaryToggleText}>{mostrarDetallesImpresion ? t.hide : t.show}</Text>
             </TouchableOpacity>
           </View>
           
           {mostrarDetallesImpresion && (
             <>
-              <Text style={styles.label}>Porcentaje de relleno (%)</Text>
+              <Text style={styles.label}>{t.fillPercentage}</Text>
               <TextInput
                 style={styles.input}
                 value={calculo.detallesImpresion.relleno}
                 onChangeText={(text) => handleDetallesImpresionChange('relleno', text)}
-                placeholder="Ej: 20"
+                placeholder={t.fillExample}
                 keyboardType="numeric"
               />
               
-              <Text style={styles.label}>Tiempo de impresión (horas)</Text>
+              <Text style={styles.label}>{t.printTime}</Text>
               <TextInput
                 style={styles.input}
                 value={calculo.detallesImpresion.tiempoImpresion}
                 onChangeText={(text) => handleDetallesImpresionChange('tiempoImpresion', text)}
-                placeholder="Ej: 3.5"
+                placeholder={t.timeExample}
                 keyboardType="numeric"
               />
               
-              <Text style={styles.label}>Temperatura (°C)</Text>
+              <Text style={styles.label}>{t.temperature}</Text>
               <TextInput
                 style={styles.input}
                 value={calculo.detallesImpresion.temperatura}
                 onChangeText={(text) => handleDetallesImpresionChange('temperatura', text)}
-                placeholder="Ej: 200"
+                placeholder={t.temperatureExample}
                 keyboardType="numeric"
               />
               
-              <Text style={styles.label}>Velocidad de impresión (mm/s)</Text>
+              <Text style={styles.label}>{t.printSpeed}</Text>
               <TextInput
                 style={styles.input}
                 value={calculo.detallesImpresion.velocidad}
                 onChangeText={(text) => handleDetallesImpresionChange('velocidad', text)}
-                placeholder="Ej: 60"
+                placeholder={t.speedExample}
                 keyboardType="numeric"
               />
               
-              <Text style={styles.label}>Altura de capa (mm)</Text>
+              <Text style={styles.label}>{t.layerHeight}</Text>
               <TextInput
                 style={styles.input}
                 value={calculo.detallesImpresion.alturaCapa}
                 onChangeText={(text) => handleDetallesImpresionChange('alturaCapa', text)}
-                placeholder="Ej: 0.2"
+                placeholder={t.layerHeightExample}
                 keyboardType="numeric"
               />
               
-              <Text style={styles.label}>Notas adicionales</Text>
+              <Text style={styles.label}>{t.additionalNotes}</Text>
               <TextInput
                 style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
                 value={calculo.detallesImpresion.notas}
                 onChangeText={(text) => handleDetallesImpresionChange('notas', text)}
-                placeholder="Ej: Soporte necesario, configuración especial, etc."
+                placeholder={t.notesExample}
                 placeholderTextColor="#666"
                 multiline
               />
@@ -1621,10 +1231,10 @@ const CostCalculatorScreen: React.FC = () => {
           <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
 
             {/* cuadro general de calculo de filamento */}
-            <Text style={styles.sectionTitle}>CÁLCULO DE FILAMENTO</Text>
+            <Text style={styles.sectionTitle}>{t.filamentCalculation}</Text>
 
           </View>
-          <Text style={styles.label}>Seleccionar material guardado</Text>
+          <Text style={styles.label}>{t.selectSavedMaterial}</Text>
 
               {/* Selector de material guardado optimizado */}
           <View style={{ flexDirection: 'column', flexWrap: 'wrap', marginBottom: 8 }}>
@@ -1640,40 +1250,40 @@ const CostCalculatorScreen: React.FC = () => {
                 <>
                   {calculo.filamento.tipo && (
                     <>
-                      <Text style={styles.label}>Subtipo de filamento</Text>
+                      <Text style={styles.label}>{t.filamentSubtype}</Text>
                       <View style={styles.pastillasContainer}>
                         {(subtiposFilamento.find(t => t.tipo === calculo.filamento.tipo)?.subtipos || []).map((sub, idx) => (
                           <TouchableOpacity
                             key={idx}
                             style={[
                               styles.pastilla,
-                              calculo.filamento.subtipo === sub && styles.pastillaSeleccionada
+                              calculo.filamento.subtipo === sub ? styles.pastillaSeleccionada : null
                             ]}
                             onPress={() => handleFilamentoChange('subtipo', sub)}
                           >
                             <Text style={[
                               styles.pastillaTexto,
-                              calculo.filamento.subtipo === sub && styles.pastillaTextoSeleccionada
+                              calculo.filamento.subtipo === sub ? styles.pastillaTextoSeleccionada : null
                             ]}>{sub}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
                     </>
                   )}
-                  <Text style={styles.label}>Tipo de filamento</Text>
+                  <Text style={styles.label}>{t.filamentType}</Text>
                   <View style={styles.pastillasContainer}>
                     {tiposFilamento.map((tipo, index) => (
                       <TouchableOpacity
                         key={index}
                         style={[
                           styles.pastilla,
-                          calculo.filamento.tipo === tipo && styles.pastillaSeleccionada
+                          calculo.filamento.tipo === tipo ? styles.pastillaSeleccionada : null
                         ]}
                         onPress={() => handleFilamentoChange('tipo', tipo)}
                       >
                         <Text style={[
                           styles.pastillaTexto,
-                          calculo.filamento.tipo === tipo && styles.pastillaTextoSeleccionada
+                          calculo.filamento.tipo === tipo ? styles.pastillaTextoSeleccionada : null
                         ]}>{tipo}</Text>
                       </TouchableOpacity>
                     ))}
@@ -1685,7 +1295,7 @@ const CostCalculatorScreen: React.FC = () => {
           })()}
 
           
-              <Text style={styles.label}>Precio del material (MXN)</Text>
+              <Text style={styles.label}>{t.materialPrice}</Text>
               <View style={styles.infoDisplayContainer}>
                 <View style={styles.infoDisplayRow}>
                   <Ionicons name="cash-outline" size={16} color="#ffd600" />
@@ -1701,15 +1311,15 @@ const CostCalculatorScreen: React.FC = () => {
                   const categoria = mat?.categoria || 'Filamento';
                   switch (categoria) {
                     case 'Filamento':
-                      return 'Peso de la bobina (gramos)';
+                      return t.bobbinWeight;
                     case 'Resina':
-                      return 'Peso de la resina (gramos)';
+                      return t.resinWeight;
                     case 'Pintura':
-                      return 'Cantidad total (ml)';
+                      return t.totalQuantity;
                     case 'Aros de llavero':
-                      return 'Cantidad disponible (unidades)';
+                      return t.availableQuantity;
                     default:
-                      return 'Cantidad restante (unidades)';
+                      return t.remainingQuantity;
                   }
                 })()}
               </Text>
@@ -1724,13 +1334,13 @@ const CostCalculatorScreen: React.FC = () => {
                       switch (categoria) {
                         case 'Filamento':
                         case 'Resina':
-                          return `${cantidadDisponible} gramos`;
+                          return `${cantidadDisponible} ${t.grams}`;
                         case 'Pintura':
                           return `${cantidadDisponible} ml`;
                         case 'Aros de llavero':
-                          return `${cantidadDisponible} unidades`;
+                          return `${cantidadDisponible} ${t.units}`;
                         default:
-                          return `${cantidadDisponible} unidades`;
+                          return `${cantidadDisponible} ${t.units}`;
                       }
                     })()}
                   </Text>
@@ -1743,16 +1353,32 @@ const CostCalculatorScreen: React.FC = () => {
                   const categoria = mat?.categoria || 'Filamento';
                   switch (categoria) {
                     case 'Pintura':
-                      return 'Mililitros utilizados';
+                      return t.usedMilliliters;
                     case 'Aros de llavero':
-                      return 'Cantidad utilizada';
+                      return t.usedQuantity;
                     case 'Filamento':
                     case 'Resina':
                     default:
-                      return 'Gramos utilizados';
+                      return t.usedGrams;
                   }
                 })()}
               </Text>
+              
+              {/* Checkbox para controlar si se descuenta el material */}
+              <View style={styles.checkboxContainer}>
+                <TouchableOpacity
+                  style={styles.checkbox}
+                  onPress={() => setDescontarCantidad(!descontarCantidad)}
+                >
+                  {descontarCantidad && (
+                    <Ionicons name="checkmark" size={18} color="#00e676" />
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.checkboxLabel}>
+                  {t.discountMaterialFromInventory}
+                </Text>
+              </View>
+              
           <TextInput
             style={styles.input}
             value={calculo.filamento.gramosUtilizados}
@@ -1763,24 +1389,24 @@ const CostCalculatorScreen: React.FC = () => {
               const categoria = mat?.categoria || 'Filamento';
               switch (categoria) {
                 case 'Pintura':
-                  return 'Ej: 50';
+                  return t.quantityExample;
                 case 'Aros de llavero':
-                  return 'Ej: 5';
+                  return t.unitsExample;
                 case 'Filamento':
                 case 'Resina':
                 default:
-                  return 'Ej: 40';
+                  return t.gramsExample;
               }
-            })()) : 'No aplica para este material'}
+            })()) : t.notApplicableForThisMaterial}
             keyboardType="numeric"
             editable={descontarCantidad}
           />
           
           <View style={styles.resultContainer}>
-                <Text style={styles.resultLabel}>Costo total del material:</Text>
+                <Text style={styles.resultLabel}>{t.totalMaterialCost}</Text>
             <Text style={styles.resultValue}>${calculo.filamento.costoFilamento} MXN</Text>
                 <Text style={styles.detailText}>
-                  Para {(() => {
+                  {t.for} {(() => {
                     const mat = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id);
                     const categoria = mat?.categoria || 'Filamento';
                     const cantidad = calculo.filamento.gramosUtilizados;
@@ -1788,13 +1414,13 @@ const CostCalculatorScreen: React.FC = () => {
                       case 'Pintura':
                         return `${cantidad}ml`;
                       case 'Aros de llavero':
-                        return `${cantidad} unidades`;
+                        return `${cantidad} ${t.units}`;
                       case 'Filamento':
                       case 'Resina':
                       default:
                         return `${cantidad}g`;
                     }
-                  })()} utilizados
+                  })()}
                 </Text>
               </View>
             </View>
@@ -1829,7 +1455,19 @@ const CostCalculatorScreen: React.FC = () => {
                       return (
                         <View style={{ marginTop: 4 }}>
                           <Text style={[styles.materialInfoDetails, { color: '#00e676' }]}>
-                            Cantidad restante: {(typeof mat.cantidadRestante !== 'undefined' ? mat.cantidadRestante : mat.cantidad || '0')}
+                            Cantidad restante: {(typeof mat.cantidadRestante !== 'undefined' ? mat.cantidadRestante : mat.cantidad || '0')}{(() => {
+                              const categoria = mat.categoria || 'Filamento';
+                              switch (categoria) {
+                                case 'Filamento':
+                                case 'Resina':
+                                  return 'g';
+                                case 'Pintura':
+                                  return 'ml';
+                                case 'Aros de llavero':
+                                default:
+                                  return ' unidades';
+                              }
+                            })()}
                           </Text>
                           <Text style={[styles.materialInfoDetails, { color: '#ffd600' }]}>
                             Precio: ${(() => {
@@ -2047,7 +1685,19 @@ const CostCalculatorScreen: React.FC = () => {
                         </Text>
                         {/* Información contextual del material múltiple */}
                         <Text style={[styles.materialInfoDetails, { color: '#00e676' }]}>
-                          Cantidad restante: {(typeof material.cantidadRestante !== 'undefined' ? material.cantidadRestante : material.cantidad || '0')}
+                          Cantidad restante: {(typeof material.cantidadRestante !== 'undefined' ? material.cantidadRestante : material.cantidad || '0')}{(() => {
+                            const categoria = material.categoria || 'Filamento';
+                            switch (categoria) {
+                              case 'Filamento':
+                              case 'Resina':
+                                return 'g';
+                              case 'Pintura':
+                                return 'ml';
+                              case 'Aros de llavero':
+                              default:
+                                return ' unidades';
+                            }
+                          })()}
                         </Text>
                         <Text style={[styles.materialInfoDetails, { color: '#ffd600' }]}>
                           Precio: ${material.precioBobina || material.precio || '0'} MXN
@@ -2203,26 +1853,26 @@ const CostCalculatorScreen: React.FC = () => {
           <View style={styles.alertOverlay}>
             <View style={[
               styles.alertContainer,
-              alertType === 'success' && styles.alertSuccess,
-              alertType === 'error' && styles.alertError,
-              alertType === 'info' && styles.alertInfo,
+              alertType === 'success' ? styles.alertSuccess : null,
+              alertType === 'error' ? styles.alertError : null,
+              alertType === 'info' ? styles.alertInfo : null,
             ]}>
               <Text style={styles.alertTitle}>{alertTitle}</Text>
               <Text style={styles.alertMessage}>{alertMessage}</Text>
               <TouchableOpacity
                 style={[
                   styles.alertButton,
-                  alertType === 'success' && styles.alertButtonSuccess,
-                  alertType === 'error' && styles.alertButtonError,
-                  alertType === 'info' && styles.alertButtonInfo,
+                  alertType === 'success' ? styles.alertButtonSuccess : null,
+                  alertType === 'error' ? styles.alertButtonError : null,
+                  alertType === 'info' ? styles.alertButtonInfo : null,
                 ]}
                 onPress={() => setShowAlert(false)}
               >
                 <Text style={[
                   styles.alertButtonText,
-                  alertType === 'success' && { color: '#222' },
-                  alertType === 'error' && { color: '#fff' },
-                  alertType === 'info' && { color: '#fff' },
+                  alertType === 'success' ? { color: '#222' } : null,
+                  alertType === 'error' ? { color: '#fff' } : null,
+                  alertType === 'info' ? { color: '#fff' } : null,
                 ]}>OK</Text>
               </TouchableOpacity>
             </View>
@@ -2832,6 +2482,36 @@ const styles = StyleSheet.create({
   },
   verMasTextArchivado: {
     color: '#e53935',
+  },
+  // Estilos para el checkbox de descuento
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#00e676',
+    backgroundColor: '#181818',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  checkboxText: {
+    color: '#00e676',
+    fontSize: 16, // Aumenta el tamaño para centrar mejor
+    fontWeight: 'bold',
+    textAlign: 'center',
+    textAlignVertical: 'center', // Esto ayuda en Android
+  },
+  checkboxLabel: {
+    color: '#a0a0a0',
+    fontSize: 14,
+    flex: 1,
   },
 });
 

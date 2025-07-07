@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { auth, app } from '../api/firebase';
 import { getFirestore, collection, getDocs, deleteDoc, doc, addDoc, updateDoc } from 'firebase/firestore';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLanguage } from '../utils/LanguageProvider';
+import translations from '../utils/locales';
 
 const db = getFirestore(app);
 
@@ -27,6 +29,8 @@ const ProyectoCard: React.FC<{
   onRecargar: () => void;
   onEliminar?: (proyecto: any) => void;
 }> = ({ proyecto, onSeleccionar, onDesarchivar, onRecargar, onEliminar }) => {
+  const { lang } = useLanguage();
+  const t = translations[lang];
   const [impresionesCarpeta, setImpresionesCarpeta] = useState<any[]>([]);
   const [loadingImpresiones, setLoadingImpresiones] = useState(true);
 
@@ -56,9 +60,9 @@ const ProyectoCard: React.FC<{
   };
 
   return (
-    <View style={[styles.proyectoCard, proyecto.archivado && styles.proyectoArchivado]}>
+    <View style={[styles.proyectoCard, proyecto.archivado ? styles.proyectoArchivado : null]}>
       <View style={styles.proyectoHeader}>
-        <Text style={[styles.proyectoNombre, proyecto.archivado && styles.proyectoArchivadoText]}>
+        <Text style={[styles.proyectoNombre, proyecto.archivado ? styles.proyectoArchivadoText : null]}>
           {proyecto.nombre}
         </Text>
         <View style={styles.proyectoActions}>
@@ -69,7 +73,7 @@ const ProyectoCard: React.FC<{
               await updateDoc(doc(db, 'usuarios', user.uid, 'proyectos', proyecto.id), { archivado: false });
               onRecargar();
             }}>
-              <Text style={styles.desarchivarButton}>Desarchivar</Text>
+              <Text style={styles.desarchivarButton}>{t.unarchive}</Text>
             </TouchableOpacity>
           )}
           {onEliminar && (
@@ -87,26 +91,28 @@ const ProyectoCard: React.FC<{
         <ActivityIndicator size="small" color="#00e676" style={styles.loadingIndicator} />
       ) : (
         <View style={styles.proyectoStats}>
-          <Text style={styles.statText}>Impresiones: {estadisticas.cantidadImpresiones}</Text>
-          <Text style={styles.statText}>Costo total: ${estadisticas.costoTotal.toFixed(2)} MXN</Text>
+          <Text style={styles.statText}>{t.impressions}: {estadisticas.cantidadImpresiones}</Text>
+          <Text style={styles.statText}>{t.totalCost}: ${estadisticas.costoTotal.toFixed(2)} MXN</Text>
           <Text style={styles.statText}>
-            Materiales usados: {estadisticas.materiales.join(', ') || '-'}
+            {t.materialsUsed}: {estadisticas.materiales.join(', ') || '-'}
           </Text>
         </View>
       )}
       
       {proyecto.archivado && (
-        <Text style={styles.archivadoText}>Archivado</Text>
+        <Text style={styles.archivadoText}>{t.archived}</Text>
       )}
       
       <TouchableOpacity style={styles.verDetallesButton} onPress={() => onSeleccionar(proyecto)}>
-        <Text style={styles.verDetallesText}>Ver detalles</Text>
+        <Text style={styles.verDetallesText}>{t.viewDetails}</Text>
       </TouchableOpacity>
     </View>
   );
 };
 
 const PrintScreen: React.FC = () => {
+  const { lang } = useLanguage();
+  const t = translations[lang];
   const [proyectos, setProyectos] = useState<any[]>([]);
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState<any | null>(null);
   const [impresiones, setImpresiones] = useState<any[]>([]);
@@ -338,9 +344,9 @@ const PrintScreen: React.FC = () => {
                           {calculo.nombre}
                         </Text>
                         {calculo.fallo ? (
-              <Text style={styles.falloText}>❌ Fallo</Text>
+              <Text style={styles.falloText}>❌ {t.failure}</Text>
                         ) : (
-              <Text style={styles.exitoText}>✅ Éxito</Text>
+              <Text style={styles.exitoText}>✅ {t.success}</Text>
                         )}
                       </View>
                     <TouchableOpacity
@@ -361,7 +367,7 @@ const PrintScreen: React.FC = () => {
             }))}
           >
             <Text style={styles.materialesToggleText}>
-              📦 Materiales utilizados
+              📦 {t.usedMaterials}
             </Text>
             <Ionicons 
               name={materialesExpandido ? "chevron-up" : "chevron-down"} 
@@ -383,64 +389,64 @@ const PrintScreen: React.FC = () => {
                     </Text>
                     <Text style={styles.materialDetailText}>
                       {(() => {
-                        const categoria = calculo.materialSeleccionado.categoria || 'Filamento';
+                        const categoria = calculo.materialSeleccionado.categoria || t.filament;
                         const cantidad = calculo.filamento?.gramosUtilizados || '0';
                         switch (categoria) {
-                          case 'Pintura':
-                            return `Mililitros utilizados: ${cantidad}ml`;
-                          case 'Aros de llavero':
-                            return `Cantidad utilizada: ${cantidad} unidades`;
-                          case 'Filamento':
-                          case 'Resina':
+                          case t.paint:
+                            return `${t.mlUsed}: ${cantidad}ml`;
+                          case t.keychainRings:
+                            return `${t.quantityUsed}: ${cantidad} unidades`;
+                          case t.filament:
+                          case t.resin:
                           default:
-                            return `Gramos utilizados: ${cantidad}g`;
+                            return `${t.gUsed}: ${cantidad}g`;
                         }
                       })()}
                     </Text>
                     {/* Información adicional del material */}
                     <View style={styles.materialInfoGrid}>
-                      <Text style={styles.materialInfoLabel}>Precio unitario:</Text>
+                      <Text style={styles.materialInfoLabel}>{t.unitPrice}:</Text>
                       <Text style={styles.materialInfoValue}>
                         ${calculo.filamento?.precioBobina || '0'} MXN
                       </Text>
-                      <Text style={styles.materialInfoLabel}>Cantidad total:</Text>
+                      <Text style={styles.materialInfoLabel}>{t.totalQuantity}:</Text>
                       <Text style={styles.materialInfoValue}>
                         {(() => {
-                          const categoria = calculo.materialSeleccionado.categoria || 'Filamento';
+                          const categoria = calculo.materialSeleccionado.categoria || t.filament;
                           const cantidad = calculo.filamento?.pesoBobina || '0';
                           switch (categoria) {
-                            case 'Pintura':
+                            case t.paint:
                               return `${cantidad}ml`;
-                            case 'Aros de llavero':
+                            case t.keychainRings:
                               return `${cantidad} unidades`;
-                            case 'Filamento':
-                            case 'Resina':
+                            case t.filament:
+                            case t.resin:
                             default:
                               return `${cantidad}g`;
                           }
                         })()}
                       </Text>
-                      <Text style={styles.materialInfoLabel}>Cantidad restante:</Text>
+                      <Text style={styles.materialInfoLabel}>{t.remainingQuantity}:</Text>
                       <Text style={styles.materialInfoValue}>
                         {(() => {
-                          const categoria = calculo.materialSeleccionado.categoria || 'Filamento';
+                          const categoria = calculo.materialSeleccionado.categoria || t.filament;
                           const restante = getCantidadRestanteHistorica(
                             calculo.materialSeleccionado.id, 
                             calculo.materialSeleccionado.cantidadRestante || '0'
                           );
                           switch (categoria) {
-                            case 'Pintura':
+                            case t.paint:
                               return `${restante}ml`;
-                            case 'Aros de llavero':
+                            case t.keychainRings:
                               return `${restante} unidades`;
-                            case 'Filamento':
-                            case 'Resina':
+                            case t.filament:
+                            case t.resin:
                             default:
                               return `${restante}g`;
                           }
                         })()}
                       </Text>
-                      <Text style={styles.materialInfoLabel}>Costo del material:</Text>
+                      <Text style={styles.materialInfoLabel}>{t.materialCost}:</Text>
                       <Text style={styles.materialInfoValue}>
                         ${calculo.filamento?.costoMaterialSolo || '0'} MXN
                       </Text>
@@ -463,41 +469,41 @@ const PrintScreen: React.FC = () => {
                           <Text style={styles.materialDetailText}>
                             {(() => {
                               switch (material.categoria) {
-                                case 'Pintura':
-                                  return `Mililitros utilizados: ${material.cantidadPintura || '0'}ml`;
-                                case 'Aros de llavero':
-                                  return `Cantidad utilizada: ${material.cantidadLlaveros || '0'} unidades`;
-                                case 'Filamento':
-                                case 'Resina':
+                                case t.paint:
+                                  return `${t.mlUsed}: ${material.cantidadPintura || '0'}ml`;
+                                case t.keychainRings:
+                                  return `${t.quantityUsed}: ${material.cantidadLlaveros || '0'} unidades`;
+                                case t.filament:
+                                case t.resin:
                                 default:
-                                  return `Gramos utilizados: ${material.gramosUtilizados || '0'}g`;
+                                  return `${t.gUsed}: ${material.gramosUtilizados || '0'}g`;
                               }
                             })()}
                           </Text>
                           {/* Información adicional del material múltiple */}
                           <View style={styles.materialInfoGrid}>
-                            <Text style={styles.materialInfoLabel}>Precio unitario:</Text>
+                            <Text style={styles.materialInfoLabel}>{t.unitPrice}:</Text>
                             <Text style={styles.materialInfoValue}>
                               ${material.precioBobina || material.precio || '0'} MXN
                             </Text>
-                            <Text style={styles.materialInfoLabel}>Cantidad total:</Text>
+                            <Text style={styles.materialInfoLabel}>{t.totalQuantity}:</Text>
                             <Text style={styles.materialInfoValue}>
                               {(() => {
                                 const categoria = material.categoria;
                                 const cantidad = material.pesoBobina || material.peso || material.cantidad || '0';
                                 switch (categoria) {
-                                  case 'Pintura':
+                                  case t.paint:
                                     return `${cantidad}ml`;
-                                  case 'Aros de llavero':
+                                  case t.keychainRings:
                                     return `${cantidad} unidades`;
-                                  case 'Filamento':
-                                  case 'Resina':
+                                  case t.filament:
+                                  case t.resin:
                                   default:
                                     return `${cantidad}g`;
                                 }
                               })()}
                             </Text>
-                            <Text style={styles.materialInfoLabel}>Cantidad restante:</Text>
+                            <Text style={styles.materialInfoLabel}>{t.remainingQuantity}:</Text>
                             <Text style={styles.materialInfoValue}>
                               {(() => {
                                 const categoria = material.categoria;
@@ -506,32 +512,32 @@ const PrintScreen: React.FC = () => {
                                   material.cantidadRestante || '0'
                                 );
                                 switch (categoria) {
-                                  case 'Pintura':
+                                  case t.paint:
                                     return `${restante}ml`;
-                                  case 'Aros de llavero':
+                                  case t.keychainRings:
                                     return `${restante} unidades`;
-                                  case 'Filamento':
-                                  case 'Resina':
+                                  case t.filament:
+                                  case t.resin:
                                   default:
                                     return `${restante}g`;
                                 }
                               })()}
                             </Text>
-                            <Text style={styles.materialInfoLabel}>Costo del material:</Text>
+                            <Text style={styles.materialInfoLabel}>{t.materialCost}:</Text>
                             <Text style={styles.materialInfoValue}>
                               ${(() => {
                                 const categoria = material.categoria;
                                 let costo = 0;
                                 
                                 switch (categoria) {
-                                  case 'Filamento':
-                                  case 'Resina':
+                                  case t.filament:
+                                  case t.resin:
                                     if (material.precioBobina && material.pesoBobina && material.gramosUtilizados) {
                                       const costoPorGramo = parseFloat(material.precioBobina) / parseFloat(material.pesoBobina);
                                       costo = costoPorGramo * parseFloat(material.gramosUtilizados);
                                     }
                                     break;
-                                  case 'Pintura':
+                                  case t.paint:
                                     if (material.precio && material.cantidad && material.cantidadPintura) {
                                       const cantidadTotalPintura = parseFloat(material.cantidad);
                                       const mlUtilizados = parseFloat(material.cantidadPintura);
@@ -539,7 +545,7 @@ const PrintScreen: React.FC = () => {
                                       costo = costoPorMl * mlUtilizados;
                                     }
                                     break;
-                                  case 'Aros de llavero':
+                                  case t.keychainRings:
                                     if (material.precio && material.cantidadLlaveros) {
                                       costo = parseFloat(material.precio) * parseFloat(material.cantidadLlaveros);
                                     }
@@ -565,35 +571,40 @@ const PrintScreen: React.FC = () => {
                       {calculo.detallesImpresion && (
                         <View style={styles.detailsContainer}>
                           {calculo.detallesImpresion.relleno && (
-                            <Text style={styles.detailText}>Relleno: {calculo.detallesImpresion.relleno}%</Text>
+                            <Text style={styles.detailText}>{t.fill}: {calculo.detallesImpresion.relleno}%</Text>
                           )}
                           {calculo.detallesImpresion.tiempoImpresion && (
-                            <Text style={styles.detailText}>Tiempo: {calculo.detallesImpresion.tiempoImpresion}h</Text>
+                            <Text style={styles.detailText}>{t.time}: {calculo.detallesImpresion.tiempoImpresion}h</Text>
                           )}
                           {calculo.detallesImpresion.temperatura && (
-                            <Text style={styles.detailText}>Temp: {calculo.detallesImpresion.temperatura}°C</Text>
+                            <Text style={styles.detailText}>{t.temp}: {calculo.detallesImpresion.temperatura}°C</Text>
                           )}
                         </View>
                       )}
           
           <Text style={[styles.infoValue, {color: '#00e676'}]}>
-            {`Materiales: $${calculo.filamento?.costoMaterialSolo || '0'} MXN`}
+            {`${t.materials}: $${calculo.filamento?.costoMaterialSolo || '0'} MXN`}
           </Text>
           <Text style={[styles.infoValue, {color: '#ffd600'}]}>
-            {`Mano de obra: $${calculo.manoObra?.costoTotalManoObra || '0'} MXN`}
+            {`${t.laborCost}: $${calculo.manoObra?.costoTotalManoObra || '0'} MXN`}
           </Text>
           <Text style={[styles.infoValue, {color: '#ff9100'}]}>
-            {`Materiales extra: $${calculo.avanzados?.totalMaterialesExtra || '0'} MXN`}
+            {`${t.extraMaterials}: $${calculo.avanzados?.totalMaterialesExtra || '0'} MXN`}
           </Text>
           <Text style={[styles.infoValue, {color: '#40c4ff'}]}>
-            {`Luz: $${calculo.avanzados?.costoLuz || '0'} MXN`}
+            {`${t.light}: $${calculo.avanzados?.costoLuz || '0'} MXN`}
           </Text>
           <Text style={[styles.infoValue, {color: '#fff'}]}>
-            {`Costo de producción: $${costoProduccion} MXN`}
+            {`${t.productionCost}: $${costoProduccion} MXN`}
           </Text>
           <Text style={[styles.infoValue, {color: '#69f0ae', fontWeight: 'bold'}]}>
-            {`Costo total: $${total} MXN`}
+            {`${t.totalCost}: $${total} MXN`}
           </Text>
+          {calculo.mostrarFecha && calculo.fecha && (
+            <Text style={{ color: '#a0a0a0', fontSize: 12, marginTop: 8, textAlign: 'right' }}>
+              {t.creationDate}: {new Date(calculo.fecha).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -603,7 +614,7 @@ const PrintScreen: React.FC = () => {
   const renderListaProyectos = () => {
     if (proyectos.length === 0) {
       return (
-        <Text style={styles.emptyText}>No hay carpetas/proyectos registrados.</Text>
+        <Text style={styles.emptyText}>{t.noFoldersOrProjects}</Text>
       );
     }
 
@@ -640,7 +651,7 @@ const PrintScreen: React.FC = () => {
 
     return (
       <View style={styles.archivadosSection}>
-        <Text style={styles.archivadosTitle}>Archivados</Text>
+        <Text style={styles.archivadosTitle}>{t.archived}</Text>
         {proyectosArchivados.map((proy) => (
           <ProyectoCard
             key={proy.id}
@@ -670,7 +681,7 @@ const PrintScreen: React.FC = () => {
   const renderProyectosSueltos = () => {
     if (proyectosSueltos.length === 0) {
       return (
-        <Text style={styles.emptyText}>No hay proyectos sueltos registrados.</Text>
+        <Text style={styles.emptyText}>{t.noSoloProjects}</Text>
       );
     }
 
@@ -678,9 +689,12 @@ const PrintScreen: React.FC = () => {
       (calc.nombre || '').toLowerCase().includes(filtro.toLowerCase())
     );
 
-    return sueltosFiltrados.map((calculo, index) => (
+    // Ordenar por fecha descendente
+    const sueltosOrdenados = sueltosFiltrados.slice().sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+    return sueltosOrdenados.map((calculo, index) => (
       <View key={calculo.id || index}>
-        {renderImpresion(calculo)}
+        {renderImpresion({ ...calculo, mostrarFecha: true })}
       </View>
     ));
   };
@@ -695,18 +709,18 @@ const PrintScreen: React.FC = () => {
     >
       <View style={styles.header}>
         <Ionicons name="calculator" size={40} color="#00e676" />
-        <Text style={styles.title}>Proyectos de Impresión</Text>
+        <Text style={styles.title}>{t.printProjects}</Text>
         <TouchableOpacity style={{marginTop: 10}} onPress={() => setCrearProyectoModal(true)}>
-          <Text style={{color: '#00e676', fontWeight: 'bold', fontSize: 16}}>+ Nuevo proyecto</Text>
+          <Text style={{color: '#00e676', fontWeight: 'bold', fontSize: 16}}>{t.newProject}</Text>
         </TouchableOpacity>
       </View>
       {/* Tabs/selector arriba de la lista */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', marginVertical: 10 }}>
         <TouchableOpacity onPress={() => setTab('carpetas')} style={{ backgroundColor: tab === 'carpetas' ? '#00e676' : '#222', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 24, marginRight: 8 }}>
-          <Text style={{ color: tab === 'carpetas' ? '#222' : '#fff', fontWeight: 'bold' }}>Carpetas/Proyectos</Text>
+          <Text style={{ color: tab === 'carpetas' ? '#222' : '#fff', fontWeight: 'bold' }}>{t.foldersOrProjects}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setTab('sueltos')} style={{ backgroundColor: tab === 'sueltos' ? '#00e676' : '#222', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 24 }}>
-          <Text style={{ color: tab === 'sueltos' ? '#222' : '#fff', fontWeight: 'bold' }}>Proyectos sueltos</Text>
+          <Text style={{ color: tab === 'sueltos' ? '#222' : '#fff', fontWeight: 'bold' }}>{t.soloProjects}</Text>
         </TouchableOpacity>
       </View>
       {/* Lista de proyectos o impresiones */}
@@ -717,11 +731,11 @@ const PrintScreen: React.FC = () => {
       ) : proyectoSeleccionado ? (
         <View style={styles.calculationsContainer}>
           <TouchableOpacity onPress={() => { setProyectoSeleccionado(null); setImpresiones([]); }} style={{marginBottom: 16}}>
-            <Text style={{color: '#00e676'}}>{'< Volver a proyectos'}</Text>
+            <Text style={{color: '#00e676'}}>{'< ' + t.backToProjects}</Text>
           </TouchableOpacity>
           <Text style={styles.title}>{proyectoSeleccionado.nombre}</Text>
           {impresiones.length === 0 ? (
-            <Text style={{ color: '#a0a0a0', textAlign: 'center', marginTop: 20 }}>No hay impresiones registradas.</Text>
+            <Text style={{ color: '#a0a0a0', textAlign: 'center', marginTop: 20 }}>{t.noimpressions}</Text>
           ) : (
             impresiones
               .filter(calc => (calc.nombre || '').toLowerCase().includes(filtro.toLowerCase()))
@@ -736,7 +750,7 @@ const PrintScreen: React.FC = () => {
             style={{ backgroundColor: '#222', color: '#fff', borderRadius: 8, padding: 10, fontSize: 16, borderWidth: 1, borderColor: '#333' }}
             value={filtro}
             onChangeText={setFiltro}
-            placeholder={proyectoSeleccionado ? 'Buscar impresión...' : 'Buscar proyecto...'}
+            placeholder={proyectoSeleccionado ? t.searchImpression : t.searchProject}
             placeholderTextColor="#888"
           />
                     </View>
@@ -764,24 +778,24 @@ const PrintScreen: React.FC = () => {
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
           <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350 }}>
-            <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Nuevo proyecto</Text>
+            <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{t.newProject}</Text>
             <TextInput
               style={{ backgroundColor: '#222', color: '#fff', borderRadius: 8, padding: 12, fontSize: 16, borderWidth: 1, borderColor: '#333', marginBottom: 12 }}
               value={nuevoProyectoNombre}
               onChangeText={setNuevoProyectoNombre}
-              placeholder="Nombre del proyecto"
+              placeholder={t.projectName}
               placeholderTextColor="#888"
             />
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
               <TouchableOpacity onPress={() => setCrearProyectoModal(false)} style={{ backgroundColor: '#a0a0a0', borderRadius: 8, padding: 10, marginRight: 8 }}>
-                <Text style={{ color: '#222' }}>Cancelar</Text>
+                <Text style={{ color: '#222' }}>{t.cancel}</Text>
               </TouchableOpacity>
             <TouchableOpacity
                 onPress={crearProyecto}
                 style={{ backgroundColor: '#00e676', borderRadius: 8, padding: 10 }}
                 disabled={!nuevoProyectoNombre.trim()}
             >
-                <Text style={{ color: '#222', fontWeight: 'bold' }}>Crear</Text>
+                <Text style={{ color: '#222', fontWeight: 'bold' }}>{t.create}</Text>
             </TouchableOpacity>
             </View>
           </View>
@@ -796,25 +810,25 @@ const PrintScreen: React.FC = () => {
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
           <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350, borderColor: '#e53935', borderWidth: 2 }}>
-            <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>⚠️ Confirmar eliminación</Text>
+            <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{t.confirmDeletion}</Text>
             <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>
-              ¿Estás seguro de que quieres eliminar {proyectoSeleccionado ? 'la impresión' : 'el proyecto'} "{impresionAEliminar?.nombre}"?
+              {t.areYouSureYouWantToDelete} {impresionAEliminar?.nombre ? t.impression : t.project} "{impresionAEliminar?.nombre}"?
             </Text>
             <Text style={{ color: '#a0a0a0', fontSize: 14, marginBottom: 20 }}>
-              Esta acción no se puede deshacer.
+              {t.thisActionCannotBeUndone}
             </Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
               <TouchableOpacity
                 style={{ flex: 1, backgroundColor: '#333', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#666' }}
                 onPress={() => setDeleteModalVisible(false)}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Cancelar</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{t.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{ flex: 1, backgroundColor: '#e53935', borderRadius: 10, paddingVertical: 12, alignItems: 'center' }}
                 onPress={eliminarImpresion}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Eliminar</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{t.delete}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -829,22 +843,22 @@ const PrintScreen: React.FC = () => {
       >
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
           <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350, borderColor: '#e53935', borderWidth: 2 }}>
-            <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>⚠️ Eliminar proyecto</Text>
+            <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{t.confirmProjectDeletion}</Text>
             <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>
-              ¿Estás seguro de que quieres eliminar el proyecto "{proyectoAEliminar?.nombre}"?
+              {t.areYouSureYouWantToDelete} {t.project} "{proyectoAEliminar?.nombre}"?
             </Text>
             <Text style={{ color: '#a0a0a0', fontSize: 14, marginBottom: 20 }}>
-              Esta acción eliminará el proyecto y todas sus impresiones asociadas. No se puede deshacer.
+              {t.thisActionWillDeleteTheProjectAndAllItsAssociatedImpressions}
             </Text>
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
               <TouchableOpacity onPress={() => setModalEliminarProyecto(false)} style={{ backgroundColor: '#a0a0a0', borderRadius: 8, padding: 10, marginRight: 8 }}>
-                <Text style={{ color: '#222' }}>Cancelar</Text>
+                <Text style={{ color: '#222' }}>{t.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={eliminarProyecto}
                 style={{ backgroundColor: '#e53935', borderRadius: 8, padding: 10 }}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Eliminar</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t.delete}</Text>
               </TouchableOpacity>
             </View>
           </View>

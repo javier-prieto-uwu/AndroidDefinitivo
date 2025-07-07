@@ -4,6 +4,11 @@ import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, query, where, doc } from 'firebase/firestore';
 import { auth, app } from '../api/firebase';
 import { useFocusEffect } from '@react-navigation/native';
+import { ColorSelector, CategorySelector } from '../components/Material';
+import { useMateriales, useCategoriasPersonalizadas } from '../hooks';
+import { generarNombreMaterial, validarMaterialCompleto } from '../utils';
+import { useLanguage } from '../utils/LanguageProvider';
+import translations from '../utils/locales';
 
 // Importo los PNGs disponibles
 const PNG_OPTIONS = [
@@ -74,20 +79,76 @@ const PALETA_COLORES = [
 ];
 
 const AddMaterialScreen: React.FC = () => {
+  const { lang } = useLanguage();
+  const t = translations[lang];
+  
+  // Categorías base traducidas
   const categoriasBase = [
-    'Filamento',
-    'Resina',
-    'Pintura',
-    'Aros de llavero',
-    // Puedes agregar más categorías aquí
+    t.filament,
+    t.resin,
+    t.paint,
+    t.keychainRings,
   ];
 
-  const tiposPintura = ['Acrílica', 'Esmalte', 'Spray', 'Óleo', 'Vinílica', 'Acuarela'];
+  // Tipos de filamento traducidos
+  const tiposFilamento = [
+    { tipo: t.pla, subtipos: [t.normal, t.silk, t.plus, t.woodType, t.shiny, t.matte, t.flexible, t.glow, t.transparent, t.multicolor, t.recycled, t.carbon, t.highTemperature] },
+    { tipo: t.abs, subtipos: [t.normal, t.plus, t.recycled, t.transparent, t.fireproof, t.carbon] },
+    { tipo: t.petg, subtipos: [t.normal, t.transparent, t.recycled, t.carbon] },
+    { tipo: t.tpu, subtipos: ['85A', '95A', t.flexible, t.transparent] },
+    { tipo: t.nylon, subtipos: [t.normal, t.carbon, t.glass] },
+    { tipo: t.pc, subtipos: [t.normal, t.carbon] },
+    { tipo: t.hips, subtipos: [t.normal] },
+    { tipo: t.asa, subtipos: [t.normal] },
+    { tipo: t.pva, subtipos: [t.normal] },
+    { tipo: t.pp, subtipos: [t.normal] },
+    { tipo: t.wood, subtipos: [t.normal] },
+    { tipo: t.metal, subtipos: [t.normal] },
+  ];
+
+  // Tipos de resina traducidos
+  const tiposResina = [
+    t.standard,
+    t.tough,
+    t.flexibleResin,
+    t.highTempResin,
+    t.dental,
+    t.transparentResin,
+    t.fast,
+    t.special,
+  ];
+
+  // Tipos de pintura traducidos
+  const tiposPintura = [t.acrylic, t.enamel, t.spray, t.oil, t.vinyl, t.watercolor];
+  
+  // Colores traducidos
+  const colores = [
+    { nombre: t.black, valor: '#222' },
+    { nombre: t.white, valor: '#fff' },
+    { nombre: t.red, valor: '#e53935' },
+    { nombre: t.blue, valor: '#1e88e5' },
+    { nombre: t.green, valor: '#43a047' },
+    { nombre: t.yellow, valor: '#fbc02d' },
+    { nombre: t.orange, valor: '#fb8c00' },
+    { nombre: t.purple, valor: '#8e24aa' },
+    { nombre: t.gray, valor: '#757575' },
+    { nombre: t.transparentColor, valor: '#e0e0e0' },
+    { nombre: t.gold, valor: '#ffd700' },
+    { nombre: t.silver, valor: '#b0b0b0' },
+    { nombre: t.copper, valor: '#b87333' },
+  ];
+
   const coloresPintura = colores.map(c => c.nombre); // Reutiliza los colores de filamento
 
-  // Estado para categorías personalizadas
-  const [categoriasPersonalizadas, setCategoriasPersonalizadas] = useState<string[]>([]);
-  const [categoriasPersonalizadasData, setCategoriasPersonalizadasData] = useState<{nombre: string, tipo?: string, color?: string, costo?: string, tieneTipo?: boolean, tieneColor?: boolean, tieneMarca?: boolean}[]>([]);
+  // Usar hook para categorías personalizadas
+  const { 
+    categorias: categoriasPersonalizadasData, 
+    agregarCategoria: agregarCategoriaHook,
+    eliminarCategoria: eliminarCategoriaHook 
+  } = useCategoriasPersonalizadas();
+  
+  const categoriasPersonalizadas = categoriasPersonalizadasData.map(cat => cat.nombre);
+  
   const [mostrarNuevaCategoria, setMostrarNuevaCategoria] = useState(false);
   const [mostrarSelectorColor, setMostrarSelectorColor] = useState<false | 'filamento' | 'pintura' | 'nuevaCategoria'>(false);
   const [usarTipo, setUsarTipo] = useState(false);
@@ -116,39 +177,19 @@ const AddMaterialScreen: React.FC = () => {
     marca: '',
   });
 
-  // Generar nombre automáticamente según la categoría
-  let nombreGenerado = '';
-  if (material.categoria === 'Filamento') {
-    nombreGenerado = [material.tipo, material.subtipo, material.color].filter(Boolean).join(' ');
-  } else if (material.categoria === 'Resina') {
-    nombreGenerado = [material.tipo, material.subtipo, material.color].filter(Boolean).join(' ');
-  } else if (material.categoria === 'Pintura') {
-    nombreGenerado = [material.tipoPintura, material.colorPintura].filter(Boolean).join(' ');
-  } else if (material.categoria === 'Aros de llavero') {
-    nombreGenerado = 'Aro de llavero';
-  } else if (material.categoria && !categoriasBase.includes(material.categoria)) {
-    nombreGenerado = [material.categoria, material.tipo, material.color, material.marca].filter(Boolean).join(' ');
-  }
+  // El nombre se genera usando la utilidad generarNombreMaterial
 
   // Obtener subtipos según el tipo seleccionado (para filamento y resina)
-  const subtipos = material.categoria === 'Filamento' 
-    ? tiposFilamento.find(t => t.tipo === material.tipo)?.subtipos || []
+  const subtipos = material.categoria === t.filament 
+    ? tiposFilamento.find(tipo => tipo.tipo === material.tipo)?.subtipos || []
     : [];
 
-  // Validar si se puede guardar según la categoría
-  let puedeGuardar = false;
-  if (material.categoria === 'Filamento') {
-    puedeGuardar = !!material.tipo && !!material.subtipo && !!material.color && !!material.precio && !!material.cantidad && !!material.peso && !!material.marca;
-  } else if (material.categoria === 'Resina') {
-    puedeGuardar = !!material.tipo && !!material.color && !!material.precio && !!material.cantidad && !!material.peso && !!material.marca;
-  } else if (material.categoria === 'Pintura') {
-    puedeGuardar = !!material.tipoPintura && !!material.colorPintura && !!material.cantidadPintura && !!material.precio && !!material.cantidad && !!material.marca;
-  } else if (material.categoria === 'Aros de llavero') {
-    puedeGuardar = !!material.precio && !!material.cantidad && !!material.marca && !!material.color;
-  } else if (material.categoria && !categoriasBase.includes(material.categoria)) {
-    // Para categorías personalizadas
-    puedeGuardar = !!material.precio && !!material.cantidad && !!material.marca;
-  }
+  // Validar si se puede guardar usando utilidad
+  const puedeGuardar = validarMaterialCompleto({
+    ...material,
+    id: '',
+    nombre: ''
+  });
 
   const db = getFirestore(app);
 
@@ -156,50 +197,62 @@ const AddMaterialScreen: React.FC = () => {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'success' | 'error'>('success');
 
+  // Usar hook de materiales para guardar
+  const { agregarMaterial } = useMateriales();
+
   const handleGuardar = async (): Promise<void> => {
-    // Guardar ambos campos tal como los ingresa el usuario
-    let materialAGuardar: any = { ...material, nombre: nombreGenerado };
+    // Generar nombre usando utilidad
+    const nombreGenerado = generarNombreMaterial({
+      ...material,
+      id: '',
+      nombre: ''
+    });
+    
+    // Preparar material para guardar
+    let materialAGuardar: any = { 
+      ...material, 
+      nombre: nombreGenerado,
+      fechaRegistro: new Date().toISOString(),
+      cantidadInicial: material.cantidad // Guardar el stock inicial (unidades)
+    };
     
     // Configurar cantidades según la categoría
-    if (material.categoria === 'Filamento' || material.categoria === 'Resina') {
-      materialAGuardar.cantidadRestante = material.peso; // Para filamento/resina, cantidadRestante = peso inicial
-      materialAGuardar.pesoBobina = material.peso; // Guardar también como pesoBobina para compatibilidad
-    } else if (material.categoria === 'Pintura') {
-      materialAGuardar.cantidadRestante = material.cantidadPintura; // Para pintura, cantidadRestante = cantidad inicial
-      materialAGuardar.cantidad = material.cantidadPintura; // Guardar también como cantidad para compatibilidad
-    } else if (material.categoria === 'Aros de llavero') {
-      materialAGuardar.cantidadRestante = material.cantidad; // Para llaveros, cantidadRestante = cantidad inicial
+    if (material.categoria === t.filament || material.categoria === t.resin) {
+      const unidades = parseFloat(material.cantidad || '1');
+      const gramosPorUnidad = parseFloat(material.peso || '1');
+      materialAGuardar.cantidadRestante = (unidades * gramosPorUnidad).toString();
+      materialAGuardar.pesoBobina = material.peso;
+    } else if (material.categoria === t.paint) {
+      const unidades = parseFloat(material.cantidad || '1');
+      const mlPorUnidad = parseFloat(material.cantidadPintura || '1');
+      materialAGuardar.cantidadRestante = (unidades * mlPorUnidad).toString();
+      materialAGuardar.cantidad = material.cantidadPintura; // ml por frasco
+    } else if (material.categoria === t.keychainRings) {
+      // Para aros de llavero: cantidadInicial se mantiene fijo, cantidadRestante y cantidad son iguales al inicio
+      materialAGuardar.cantidadRestante = material.cantidad;
+      materialAGuardar.cantidad = material.cantidad; // Stock actual en unidades
     } else {
-      // Para categorías personalizadas, usar el campo cantidad como cantidadRestante
+      // Para categorías personalizadas: cantidadInicial se mantiene fijo, cantidadRestante y cantidad son iguales al inicio
       materialAGuardar.cantidadRestante = material.cantidad || '0';
+      materialAGuardar.cantidad = material.cantidad || '0'; // Stock actual en unidades
     }
     
     // Asegurar que el color se guarde en el campo principal según la categoría
-    if (material.categoria === 'Pintura') {
-      materialAGuardar.color = material.colorPintura; // Usar colorPintura como color principal
-    } else if (material.categoria === 'Aros de llavero') {
-      // Para aros de llavero, usar un color por defecto o el seleccionado
+    if (material.categoria === t.paint) {
+      materialAGuardar.color = material.colorPintura;
+    } else if (material.categoria === t.keychainRings) {
       materialAGuardar.color = material.color || '#00e676';
     }
-    // Para Filamento y Resina ya se guarda correctamente en material.color
     
-    // Registrar fecha automáticamente
-    materialAGuardar.fechaRegistro = new Date().toISOString();
     // Guardar la ruta del PNG seleccionado
     if (material.svgSeleccionado) {
       materialAGuardar.imagen = material.svgSeleccionado;
     }
+    
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        setAlertType('error');
-        setAlertMessage('Debes iniciar sesión para guardar materiales');
-        setShowAlert(true);
-        return;
-      }
-      await addDoc(collection(db, 'usuarios', user.uid, 'materiales'), materialAGuardar);
+      await agregarMaterial(materialAGuardar);
       setAlertType('success');
-      setAlertMessage('Material guardado correctamente');
+      setAlertMessage(t.successSave);
       setShowAlert(true);
       setMaterial({
         categoria: '',
@@ -218,51 +271,49 @@ const AddMaterialScreen: React.FC = () => {
       });
     } catch (error: any) {
       setAlertType('error');
-      setAlertMessage('Error al guardar el material: ' + (error.message || error));
+      setAlertMessage(t.errorSave + (error.message || error));
       setShowAlert(true);
     }
   };
 
-  // Lógica para agregar nueva categoría personalizada
-  // 1. Guardar categoría personalizada en Firestore al agregar:
+  // Lógica para agregar nueva categoría personalizada usando el hook
   const handleAgregarCategoria = async () => {
     if (!nuevaCategoria.nombre) return;
-    const user = auth.currentUser;
-    if (!user) return;
-    const nuevaCat = { ...nuevaCategoria, tieneTipo: usarTipo, tieneColor: usarColor, tieneMarca: usarMarca };
-    await addDoc(collection(db, 'usuarios', user.uid, 'categoriasPersonalizadas'), nuevaCat);
-    setCategoriasPersonalizadas([...categoriasPersonalizadas, nuevaCategoria.nombre]);
-    setCategoriasPersonalizadasData([...categoriasPersonalizadasData, nuevaCat]);
-    setMaterial({
-      ...material,
-      categoria: nuevaCategoria.nombre,
-      tipo: nuevaCategoria.tipo,
-      color: nuevaCategoria.color,
-      // precio: nuevaCategoria.costo // Eliminado
-    });
-    setNuevaCategoria({ nombre: '', tipo: '', color: '', costo: '' });
-    setMostrarNuevaCategoria(false);
-    setUsarTipo(false);
-    setUsarColor(false);
-    setUsarMarca(false);
-    setMostrarSelectorColor(false);
+    try {
+      const nuevaCat = { 
+        ...nuevaCategoria, 
+        tieneTipo: usarTipo, 
+        tieneColor: usarColor, 
+        tieneMarca: usarMarca 
+      };
+      await agregarCategoriaHook(nuevaCat);
+      setMaterial({
+        ...material,
+        categoria: nuevaCategoria.nombre,
+        tipo: nuevaCategoria.tipo,
+        color: nuevaCategoria.color,
+      });
+      setNuevaCategoria({ nombre: '', tipo: '', color: '', costo: '' });
+      setMostrarNuevaCategoria(false);
+      setUsarTipo(false);
+      setUsarColor(false);
+      setUsarMarca(false);
+      setMostrarSelectorColor(false);
+    } catch (error) {
+      console.error('Error al agregar categoría:', error);
+    }
   };
 
-  // Eliminar categoría personalizada
+  // Eliminar categoría personalizada usando el hook
   const handleEliminarCategoria = async (nombre: string) => {
-    setCategoriasPersonalizadas(categoriasPersonalizadas.filter(cat => cat !== nombre));
-    setCategoriasPersonalizadasData(categoriasPersonalizadasData.filter(cat => cat.nombre !== nombre));
-    if (material.categoria === nombre) {
-      setMaterial({ ...material, categoria: '', tipo: '', color: '', precio: '' });
+    try {
+      await eliminarCategoriaHook(nombre);
+      if (material.categoria === nombre) {
+        setMaterial({ ...material, categoria: '', tipo: '', color: '', precio: '' });
+      }
+    } catch (error) {
+      console.error('Error al eliminar categoría:', error);
     }
-    // Eliminar de Firestore
-    const user = auth.currentUser;
-    if (!user) return;
-    const q = query(collection(db, 'usuarios', user.uid, 'categoriasPersonalizadas'), where('nombre', '==', nombre));
-    const snapshot = await getDocs(q);
-    snapshot.forEach(async (docu) => {
-      await deleteDoc(docu.ref);
-    });
   };
 
   // Lista de marcas comunes
@@ -353,37 +404,7 @@ const AddMaterialScreen: React.FC = () => {
   // 1. Estado para tipos de la categoría personalizada seleccionada
   const [tiposPersonalizados, setTiposPersonalizados] = useState<string[]>([]);
 
-  // 2. Leer categorías personalizadas de Firestore al iniciar la pantalla:
-  React.useEffect(() => {
-    const cargarCategoriasPersonalizadas = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
-      const snapshot = await getDocs(collection(db, 'usuarios', user.uid, 'categoriasPersonalizadas'));
-      const cats = snapshot.docs
-        .map(doc => doc.data() as { nombre: string; tipo?: string; color?: string; costo?: string; tieneTipo?: boolean; tieneColor?: boolean; tieneMarca?: boolean })
-        .filter(cat => !!cat.nombre);
-      setCategoriasPersonalizadas(cats.map(cat => cat.nombre));
-      setCategoriasPersonalizadasData(cats);
-    };
-    cargarCategoriasPersonalizadas();
-  }, []);
-
-  // Reemplaza el useEffect de cargarCategoriasPersonalizadas por useFocusEffect para recargar cada vez que la pantalla gane el foco:
-  useFocusEffect(
-    React.useCallback(() => {
-      const cargarCategoriasPersonalizadas = async () => {
-        const user = auth.currentUser;
-        if (!user) return;
-        const snapshot = await getDocs(collection(db, 'usuarios', user.uid, 'categoriasPersonalizadas'));
-        const cats = snapshot.docs
-          .map(doc => doc.data() as { nombre: string; tipo?: string; color?: string; costo?: string; tieneTipo?: boolean; tieneColor?: boolean; tieneMarca?: boolean })
-          .filter(cat => !!cat.nombre);
-        setCategoriasPersonalizadas(cats.map(cat => cat.nombre));
-        setCategoriasPersonalizadasData(cats);
-      };
-      cargarCategoriasPersonalizadas();
-    }, [])
-  );
+  // El hook useCategoriasPersonalizadas ya maneja la carga automática de categorías
 
   // 3. Render dinámico de tipos y colores:
   // (Ya implementado, pero asegúrate de que tiposPersonalizados y material.tipo se reinicien al cambiar de categoría personalizada)
@@ -471,11 +492,11 @@ const AddMaterialScreen: React.FC = () => {
     >
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerText}>Nuevo material</Text>
+          <Text style={styles.headerText}>{t.newMaterial}</Text>
         </View>
 
         {/* Selector visual de PNGs pequeño */}
-        <Text style={styles.label}>Selecciona una imagen</Text>
+        <Text style={styles.label}>{t.selectImage}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
           {PNG_OPTIONS_ORDENADAS.map(({ label, value, source }) => (
             <TouchableOpacity
@@ -495,10 +516,10 @@ const AddMaterialScreen: React.FC = () => {
               }}
               onPress={() => {
                 let categoriaAuto = '';
-                if (value === 'filamento') categoriaAuto = 'Filamento';
-                else if (value === 'resina') categoriaAuto = 'Resina';
-                else if (value === 'pinturas') categoriaAuto = 'Pintura';
-                else if (value === 'arosllaveros') categoriaAuto = 'Aros de llavero';
+                if (value === 'filamento') categoriaAuto = t.filament;
+                else if (value === 'resina') categoriaAuto = t.resin;
+                else if (value === 'pinturas') categoriaAuto = t.paint;
+                else if (value === 'arosllaveros') categoriaAuto = t.keychainRings;
                 else categoriaAuto = 'Más';
                 setMaterial({
                   ...material,
@@ -514,14 +535,14 @@ const AddMaterialScreen: React.FC = () => {
         </View>
 
         {/* Selector de categoría con pastilla + y X para eliminar */}
-        <Text style={styles.label}>Categoría</Text>
+        <Text style={styles.label}>{t.category}</Text>
         <View style={[styles.pastillasContainer, { alignItems: 'center' }]}> 
           {categoriasBase.map((cat) => (
             <TouchableOpacity
               key={cat}
               style={[
                 styles.pastilla,
-                material.categoria === cat && styles.pastillaSeleccionada
+                material.categoria === cat ? styles.pastillaSeleccionada : null
               ]}
               onPress={() => setMaterial({
                 ...material,
@@ -539,7 +560,7 @@ const AddMaterialScreen: React.FC = () => {
             >
               <Text style={[
                 styles.pastillaTexto,
-                material.categoria === cat && styles.pastillaTextoSeleccionada
+                material.categoria === cat ? styles.pastillaTextoSeleccionada : null
               ]}>{cat}</Text>
             </TouchableOpacity>
           ))}
@@ -548,7 +569,7 @@ const AddMaterialScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.pastilla,
-                  material.categoria === cat && styles.pastillaSeleccionada,
+                  material.categoria === cat ? styles.pastillaSeleccionada : null,
                   { flexDirection: 'row', alignItems: 'center', paddingRight: 4 }
                 ]}
                 onPress={() => setMaterial({
@@ -566,7 +587,7 @@ const AddMaterialScreen: React.FC = () => {
               >
                 <Text style={[
                   styles.pastillaTexto,
-                  material.categoria === cat && styles.pastillaTextoSeleccionada
+                  material.categoria === cat ? styles.pastillaTextoSeleccionada : null
                 ]}>{cat}</Text>
                 <TouchableOpacity onPress={() => handleEliminarCategoria(cat)} style={{ marginLeft: 6, backgroundColor: 'transparent', borderRadius: 10, padding: 2 }}>
                   <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 16 }}>×</Text>
@@ -586,53 +607,53 @@ const AddMaterialScreen: React.FC = () => {
         {/* Formulario para nueva categoría personalizada */}
         {mostrarNuevaCategoria && (
           <View style={styles.nuevaCategoriaContainer}>
-            <Text style={styles.label}>Nueva categoría</Text>
+            <Text style={styles.label}>{t.newCategory}</Text>
             <TextInput
               style={styles.input}
               value={nuevaCategoria.nombre}
               onChangeText={text => setNuevaCategoria({ ...nuevaCategoria, nombre: text })}
-              placeholder="Nombre de la categoría"
+              placeholder={t.categoryName}
             />
             {/* Switch para activar/desactivar campo tipo */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <Text style={styles.label}>¿Agregar tipo?</Text>
+              <Text style={styles.label}>{t.addType}</Text>
               <TouchableOpacity
                 style={[styles.pastilla, usarTipo ? { backgroundColor: '#00e676', borderColor: '#00e676' } : { backgroundColor: '#222', borderColor: '#333' }]}
                 onPress={() => setUsarTipo(!usarTipo)}
               >
-                <Text style={[styles.pastillaTexto, usarTipo && { color: '#222', fontWeight: 'bold' }]}>{usarTipo ? 'Sí' : 'No'}</Text>
+                <Text style={[styles.pastillaTexto, usarTipo && { color: '#222', fontWeight: 'bold' }]}>{usarTipo ? t.yes : t.no}</Text>
               </TouchableOpacity>
             </View>
             {/* Switch para activar/desactivar campo color */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <Text style={styles.label}>¿Agregar color?</Text>
+              <Text style={styles.label}>{t.addColor}</Text>
               <TouchableOpacity
                 style={[styles.pastilla, usarColor ? { backgroundColor: '#00e676', borderColor: '#00e676' } : { backgroundColor: '#222', borderColor: '#333' }]}
                 onPress={() => setUsarColor(!usarColor)}
               >
-                <Text style={[styles.pastillaTexto, usarColor && { color: '#222', fontWeight: 'bold' }]}>{usarColor ? 'Sí' : 'No'}</Text>
+                <Text style={[styles.pastillaTexto, usarColor && { color: '#222', fontWeight: 'bold' }]}>{usarColor ? t.yes : t.no}</Text>
               </TouchableOpacity>
             </View>
             {/* Switch para activar/desactivar campo marca */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <Text style={styles.label}>¿Agregar marca?</Text>
+              <Text style={styles.label}>{t.addBrand}</Text>
               <TouchableOpacity
                 style={[styles.pastilla, usarMarca ? { backgroundColor: '#00e676', borderColor: '#00e676' } : { backgroundColor: '#222', borderColor: '#333' }]}
                 onPress={() => setUsarMarca(!usarMarca)}
               >
-                <Text style={[styles.pastillaTexto, usarMarca && { color: '#222', fontWeight: 'bold' }]}>{usarMarca ? 'Sí' : 'No'}</Text>
+                <Text style={[styles.pastillaTexto, usarMarca && { color: '#222', fontWeight: 'bold' }]}>{usarMarca ? t.yes : t.no}</Text>
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
               <TouchableOpacity onPress={() => { setMostrarNuevaCategoria(false); setNuevaCategoria({ nombre: '', tipo: '', color: '', costo: '' }); setUsarTipo(false); setUsarColor(false); setUsarMarca(false); }} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}> 
-                <Text style={{ color: '#222' }}>Cancelar</Text>
+                <Text style={{ color: '#222' }}>{t.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleAgregarCategoria}
                 style={[styles.pastilla, { backgroundColor: '#00e676' }, !nuevaCategoria.nombre && { opacity: 0.5 }]}
                 disabled={!nuevaCategoria.nombre}
               > 
-                <Text style={{ color: '#222', fontWeight: 'bold' }}>Agregar</Text>
+                <Text style={{ color: '#222', fontWeight: 'bold' }}>{t.add}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -640,55 +661,55 @@ const AddMaterialScreen: React.FC = () => {
 
         {/* Resumen de selección */}
         <View style={styles.resumenContainer}>
-          <Text style={styles.resumenTitulo}>Resumen de selección:</Text>
-          <Text style={styles.resumenTexto}>Categoría: <Text style={styles.resumenDato}>{material.categoria || '-'}</Text></Text>
-          <Text style={styles.resumenTexto}>Marca: <Text style={styles.resumenDato}>{material.marca || '-'}</Text></Text>
-          {material.categoria === 'Filamento' && (
+          <Text style={styles.resumenTitulo}>{t.selectionSummary}</Text>
+          <Text style={styles.resumenTexto}>{t.category}: <Text style={styles.resumenDato}>{material.categoria || t.dash}</Text></Text>
+          <Text style={styles.resumenTexto}>{t.brand}: <Text style={styles.resumenDato}>{material.marca || t.dash}</Text></Text>
+          {material.categoria === t.filament && (
             <>
-              <Text style={styles.resumenTexto}>Tipo: <Text style={styles.resumenDato}>{material.tipo || '-'}</Text></Text>
-              <Text style={styles.resumenTexto}>Subtipo: <Text style={styles.resumenDato}>{material.subtipo || '-'}</Text></Text>
-              <Text style={styles.resumenTexto}>Color: <Text style={styles.resumenDato}>{material.color || '-'}</Text></Text>
+              <Text style={styles.resumenTexto}>{t.type}: <Text style={styles.resumenDato}>{material.tipo || t.dash}</Text></Text>
+              <Text style={styles.resumenTexto}>{t.subtype}: <Text style={styles.resumenDato}>{material.subtipo || t.dash}</Text></Text>
+              <Text style={styles.resumenTexto}>{t.color}: <Text style={styles.resumenDato}>{material.color || t.dash}</Text></Text>
             </>
           )}
-          {material.categoria === 'Resina' && (
+          {material.categoria === t.resin && (
             <>
-              <Text style={styles.resumenTexto}>Tipo: <Text style={styles.resumenDato}>{material.tipo || '-'}</Text></Text>
-              <Text style={styles.resumenTexto}>Color: <Text style={styles.resumenDato}>{material.color || '-'}</Text></Text>
+              <Text style={styles.resumenTexto}>{t.type}: <Text style={styles.resumenDato}>{material.tipo || t.dash}</Text></Text>
+              <Text style={styles.resumenTexto}>{t.color}: <Text style={styles.resumenDato}>{material.color || t.dash}</Text></Text>
             </>
           )}
-          {material.categoria === 'Pintura' && (
+          {material.categoria === t.paint && (
             <>
-              <Text style={styles.resumenTexto}>Tipo: <Text style={styles.resumenDato}>{material.tipoPintura || '-'}</Text></Text>
-              <Text style={styles.resumenTexto}>Color: <Text style={styles.resumenDato}>{material.colorPintura || '-'}</Text></Text>
-              <Text style={styles.resumenTexto}>Cantidad: <Text style={styles.resumenDato}>{material.cantidadPintura || '-'}</Text></Text>
+              <Text style={styles.resumenTexto}>{t.type}: <Text style={styles.resumenDato}>{material.tipoPintura || t.dash}</Text></Text>
+              <Text style={styles.resumenTexto}>{t.color}: <Text style={styles.resumenDato}>{material.colorPintura || t.dash}</Text></Text>
+              <Text style={styles.resumenTexto}>{t.quantity}: <Text style={styles.resumenDato}>{material.cantidadPintura || t.dash}</Text></Text>
             </>
           )}
-          {material.categoria === 'Aros de llavero' && (
+          {material.categoria === t.keychainRings && (
             <>
-              <Text style={styles.resumenTexto}>Color: <Text style={styles.resumenDato}>{material.color || '-'}</Text></Text>
+              <Text style={styles.resumenTexto}>{t.color}: <Text style={styles.resumenDato}>{material.color || t.dash}</Text></Text>
             </>
           )}
           {/* Resumen dinámico para categorías personalizadas */}
           {material.categoria && !categoriasBase.includes(material.categoria) && (
             <>
               {mostrarTipo && (
-                <Text style={styles.resumenTexto}>Tipo: <Text style={styles.resumenDato}>{material.tipo || '-'}</Text></Text>
+                <Text style={styles.resumenTexto}>{t.type}: <Text style={styles.resumenDato}>{material.tipo || t.dash}</Text></Text>
               )}
               {mostrarColor && (
-                <Text style={styles.resumenTexto}>Color: <Text style={styles.resumenDato}>{material.color || '-'}</Text></Text>
+                <Text style={styles.resumenTexto}>{t.color}: <Text style={styles.resumenDato}>{material.color || t.dash}</Text></Text>
               )}
               {mostrarMarca && (
-                <Text style={styles.resumenTexto}>Marca: <Text style={styles.resumenDato}>{material.marca || '-'}</Text></Text>
+                <Text style={styles.resumenTexto}>{t.brand}: <Text style={styles.resumenDato}>{material.marca || t.dash}</Text></Text>
               )}
             </>
           )}
-          <Text style={styles.resumenTexto}>Nombre generado: <Text style={styles.resumenDato}>{nombreGenerado || '-'}</Text></Text>
+          <Text style={styles.resumenTexto}>{t.generatedName}: <Text style={styles.resumenDato}>{generarNombreMaterial({...material, id: '', nombre: ''}) || t.dash}</Text></Text>
         </View>
 
         {/* Selector de marcas para categorías base y personalizadas */}
         {(categoriasBase.includes(material.categoria) || mostrarMarca) && (
           <>
-            <Text style={styles.label}>Marca</Text>
+            <Text style={styles.label}>{t.brand}</Text>
             <View style={[styles.pastillasContainer, { alignItems: 'center' }]}> 
               {getMarcasDisponibles().filter(m => m !== 'Agregar +').map((marca) => (
                 <TouchableOpacity
@@ -728,23 +749,23 @@ const AddMaterialScreen: React.FC = () => {
                   onPress={() => setMostrarNuevaMarca(true)}
                   disabled={modoEliminarMarca}
                 >
-                  <Text style={{ color: '#00e676', fontWeight: 'bold' }}>Agregar +</Text>
+                  <Text style={{ color: '#00e676', fontWeight: 'bold' }}>{t.add}</Text>
                 </TouchableOpacity>
               )}
               {/* Formulario embebido para nueva marca */}
               {mostrarNuevaMarca && (
                 <View style={[styles.nuevaCategoriaContainer, { marginTop: 8, marginBottom: 8 }]}> 
-                  <Text style={styles.label}>Nueva marca</Text>
+                  <Text style={styles.label}>{t.newBrand}</Text>
                   <TextInput
                     style={styles.input}
                     value={nuevaMarca}
                     onChangeText={setNuevaMarca}
-                    placeholder="Nombre de la marca"
+                    placeholder={t.brandName}
                     placeholderTextColor="#888"
                   />
                   <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
                     <TouchableOpacity onPress={() => { setMostrarNuevaMarca(false); setNuevaMarca(''); }} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}> 
-                      <Text style={{ color: '#222' }}>Cancelar</Text>
+                      <Text style={{ color: '#222' }}>{t.cancel}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={async () => {
@@ -756,7 +777,7 @@ const AddMaterialScreen: React.FC = () => {
                       style={[styles.pastilla, { backgroundColor: '#00e676' }, !nuevaMarca.trim() && { opacity: 0.5 }]}
                       disabled={!nuevaMarca.trim()}
                     > 
-                      <Text style={{ color: '#222', fontWeight: 'bold' }}>Agregar</Text>
+                      <Text style={{ color: '#222', fontWeight: 'bold' }}>{t.add}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -772,7 +793,7 @@ const AddMaterialScreen: React.FC = () => {
                   setMarcasSeleccionadas([]);
                 }}
               >
-                <Text style={{ color: '#e53935', fontWeight: 'bold' }}>Eliminar -</Text>
+                <Text style={{ color: '#e53935', fontWeight: 'bold' }}>{t.delete}</Text>
               </TouchableOpacity>
             </View>
             {/* Botón Borrar y confirmación */}
@@ -781,18 +802,18 @@ const AddMaterialScreen: React.FC = () => {
                 style={{ backgroundColor: '#e53935', borderRadius: 10, padding: 10, alignItems: 'center', marginBottom: 8 }}
                 onPress={() => setMostrarConfirmarEliminarMarca(true)}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Borrar ({marcasSeleccionadas.length})</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t.deleteSelected} ({marcasSeleccionadas.length})</Text>
               </TouchableOpacity>
             )}
             {/* Modal de confirmación para eliminar marcas */}
             <Modal visible={mostrarConfirmarEliminarMarca} transparent animationType="fade">
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
                 <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350, borderColor: '#e53935', borderWidth: 2 }}>
-                  <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>¿Eliminar las marcas seleccionadas?</Text>
-                  <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>Esta acción no se puede deshacer.</Text>
+                  <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{t.confirmDeleteBrands}</Text>
+                  <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>{t.thisActionCannotBeUndone}</Text>
                   <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
                     <TouchableOpacity onPress={() => setMostrarConfirmarEliminarMarca(false)} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}> 
-                      <Text style={{ color: '#222' }}>Cancelar</Text>
+                      <Text style={{ color: '#222' }}>{t.cancel}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={async () => {
@@ -808,7 +829,7 @@ const AddMaterialScreen: React.FC = () => {
                       }}
                       style={[styles.pastilla, { backgroundColor: '#e53935' }]}
                     >
-                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Eliminar</Text>
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t.delete}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -820,222 +841,146 @@ const AddMaterialScreen: React.FC = () => {
         {/* Formulario dinámico según categoría */}
         <View style={styles.formContainer}>
           {/* FILAMENTO */}
-          {material.categoria === 'Filamento' && (
+          {material.categoria === t.filament && (
             <>
-              <Text style={styles.label}>Tipo de filamento</Text>
+              <Text style={styles.label}>{t.filamentType}</Text>
               <View style={styles.pastillasContainer}>
                 {tiposFilamento.map((t) => (
                   <TouchableOpacity
                     key={t.tipo}
                     style={[
                       styles.pastilla,
-                      material.tipo === t.tipo && styles.pastillaSeleccionada
+                      material.tipo === t.tipo ? styles.pastillaSeleccionada : null
                     ]}
                     onPress={() => setMaterial({ ...material, tipo: t.tipo, subtipo: '' })}
                   >
                     <Text style={[
                       styles.pastillaTexto,
-                      material.tipo === t.tipo && styles.pastillaTextoSeleccionada
+                      material.tipo === t.tipo ? styles.pastillaTextoSeleccionada : null
                     ]}>{t.tipo}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
               {material.tipo !== '' && (
                 <>
-                  <Text style={styles.label}>Subtipo</Text>
+                  <Text style={styles.label}>{t.subtype}</Text>
                   <View style={styles.pastillasContainer}>
                     {subtipos.map((sub) => (
                       <TouchableOpacity
                         key={sub}
                         style={[
                           styles.pastilla,
-                          material.subtipo === sub && styles.pastillaSeleccionada
+                          material.subtipo === sub ? styles.pastillaSeleccionada : null
                         ]}
                         onPress={() => setMaterial({ ...material, subtipo: sub })}
                       >
                         <Text style={[
                           styles.pastillaTexto,
-                          material.subtipo === sub && styles.pastillaTextoSeleccionada
+                          material.subtipo === sub ? styles.pastillaTextoSeleccionada : null
                         ]}>{sub}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </>
               )}
-              <Text style={styles.label}>Color</Text>
-              <Text style={{ color: '#a0a0a0', marginBottom: 4 }}>Selecciona un color:</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {PALETA_COLORES.map((col) => (
-                  <TouchableOpacity
-                    key={col}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: col,
-                      marginRight: 8,
-                      marginBottom: 8,
-                      borderWidth: material.color === col ? 3 : 2,
-                      borderColor: material.color === col ? '#00e676' : '#333',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                    onPress={() => setMaterial({ ...material, color: col })}
-                  >
-                    {material.color === col && <Text style={{ color: col === '#fff' ? '#222' : '#fff', fontWeight: 'bold' }}>✓</Text>}
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={styles.label}>Peso de la bobina (gramos)</Text>
+              <Text style={styles.label}>{t.color}</Text>
+              <ColorSelector
+                selectedColor={material.color}
+                onColorSelect={(color) => setMaterial({ ...material, color })}
+              />
+              <Text style={styles.label}>{t.bobbinWeight}</Text>
               <TextInput
                 style={styles.input}
                 value={material.peso}
                 onChangeText={(text) => setMaterial({ ...material, peso: text })}
-                placeholder="Ej: 1000"
+                placeholder={t.exampleWeight}
                 keyboardType="numeric"
               />
             </>
           )}
 
           {/* RESINA */}
-          {material.categoria === 'Resina' && (
+          {material.categoria === t.resin && (
             <>
-              <Text style={styles.label}>Tipo de resina</Text>
+              <Text style={styles.label}>{t.resinType}</Text>
               <View style={styles.pastillasContainer}>
                 {tiposResina.map((t) => (
                   <TouchableOpacity
                     key={t}
                     style={[
                       styles.pastilla,
-                      material.tipo === t && styles.pastillaSeleccionada
+                      material.tipo === t ? styles.pastillaSeleccionada : null
                     ]}
                     onPress={() => setMaterial({ ...material, tipo: t, subtipo: '' })}
                   >
                     <Text style={[
                       styles.pastillaTexto,
-                      material.tipo === t && styles.pastillaTextoSeleccionada
+                      material.tipo === t ? styles.pastillaTextoSeleccionada : null
                     ]}>{t}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={styles.label}>Color</Text>
-              <Text style={{ color: '#a0a0a0', marginBottom: 4 }}>Selecciona un color:</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {PALETA_COLORES.map((col) => (
-                  <TouchableOpacity
-                    key={col}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: col,
-                      marginRight: 8,
-                      marginBottom: 8,
-                      borderWidth: material.color === col ? 3 : 2,
-                      borderColor: material.color === col ? '#00e676' : '#333',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                    onPress={() => setMaterial({ ...material, color: col })}
-                  >
-                    {material.color === col && <Text style={{ color: col === '#fff' ? '#222' : '#fff', fontWeight: 'bold' }}>✓</Text>}
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={styles.label}>Peso de la resina (gramos)</Text>
+              <Text style={styles.label}>{t.color}</Text>
+              <ColorSelector
+                selectedColor={material.color}
+                onColorSelect={(color) => setMaterial({ ...material, color })}
+              />
+              <Text style={styles.label}>{t.resinWeight}</Text>
               <TextInput
                 style={styles.input}
                 value={material.peso}
                 onChangeText={(text) => setMaterial({ ...material, peso: text })}
-                placeholder="Ej: 1000"
+                placeholder={t.exampleWeight}
                 keyboardType="numeric"
               />
             </>
           )}
 
           {/* PINTURA */}
-          {material.categoria === 'Pintura' && (
+          {material.categoria === t.paint && (
             <>
-              <Text style={styles.label}>Tipo de pintura</Text>
+              <Text style={styles.label}>{t.paintType}</Text>
               <View style={styles.pastillasContainer}>
                 {tiposPintura.map((tipo) => (
                   <TouchableOpacity
                     key={tipo}
                     style={[
                       styles.pastilla,
-                      material.tipoPintura === tipo && styles.pastillaSeleccionada
+                      material.tipoPintura === tipo ? styles.pastillaSeleccionada : null
                     ]}
                     onPress={() => setMaterial({ ...material, tipoPintura: tipo })}
                   >
                     <Text style={[
                       styles.pastillaTexto,
-                      material.tipoPintura === tipo && styles.pastillaTextoSeleccionada
+                      material.tipoPintura === tipo ? styles.pastillaTextoSeleccionada : null
                     ]}>{tipo}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={styles.label}>Color</Text>
-              <Text style={{ color: '#a0a0a0', marginBottom: 4 }}>Selecciona un color:</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {PALETA_COLORES.map((col) => (
-                  <TouchableOpacity
-                    key={col}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: col,
-                      marginRight: 8,
-                      marginBottom: 8,
-                      borderWidth: material.colorPintura === col ? 3 : 2,
-                      borderColor: material.colorPintura === col ? '#00e676' : '#333',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                    onPress={() => setMaterial({ ...material, colorPintura: col })}
-                  >
-                    {material.colorPintura === col && <Text style={{ color: col === '#fff' ? '#222' : '#fff', fontWeight: 'bold' }}>✓</Text>}
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={styles.label}>Cantidad (ml)</Text>
+              <Text style={styles.label}>{t.color}</Text>
+              <ColorSelector
+                selectedColor={material.colorPintura}
+                onColorSelect={(color) => setMaterial({ ...material, colorPintura: color })}
+              />
+              <Text style={styles.label}>{t.quantity}</Text>
               <TextInput
                 style={styles.input}
                 value={material.cantidadPintura}
                 onChangeText={(text) => setMaterial({ ...material, cantidadPintura: text })}
-                placeholder="Ej: 250"
+                placeholder={t.exampleQuantity}
                 keyboardType="numeric"
               />
             </>
           )}
 
           {/* AROS DE LLAVERO */}
-          {material.categoria === 'Aros de llavero' && (
+          {material.categoria === t.keychainRings && (
             <>
-              <Text style={styles.label}>Color</Text>
-              <Text style={{ color: '#a0a0a0', marginBottom: 4 }}>Selecciona un color:</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {PALETA_COLORES.map((col) => (
-                  <TouchableOpacity
-                    key={col}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: col,
-                      marginRight: 8,
-                      marginBottom: 8,
-                      borderWidth: material.color === col ? 3 : 2,
-                      borderColor: material.color === col ? '#00e676' : '#333',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                    onPress={() => setMaterial({ ...material, color: col })}
-                  >
-                    {material.color === col && <Text style={{ color: col === '#fff' ? '#222' : '#fff', fontWeight: 'bold' }}>✓</Text>}
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Text style={styles.label}>{t.color}</Text>
+              <ColorSelector
+                selectedColor={material.color}
+                onColorSelect={(color) => setMaterial({ ...material, color })}
+              />
             </>
           )}
 
@@ -1044,7 +989,7 @@ const AddMaterialScreen: React.FC = () => {
             <>
               {mostrarTipo && (
                 <>
-                  <Text style={styles.label}>{`Tipo de ${material.categoria.toLowerCase()}`}</Text>
+                  <Text style={styles.label}>{`${t.typeOf}${material.categoria.toLowerCase()}`}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
                     {tiposPersonalizados.map((tipo, idx) => (
                       <TouchableOpacity
@@ -1082,7 +1027,7 @@ const AddMaterialScreen: React.FC = () => {
                         setTiposSeleccionados([]);
                       }}
                     >
-                      <Text style={{ color: '#e53935', fontWeight: 'bold' }}>Eliminar -</Text>
+                      <Text style={{ color: '#e53935', fontWeight: 'bold' }}>{t.delete}</Text>
                     </TouchableOpacity>
                     {/* Botón Agregar + */}
                     <TouchableOpacity
@@ -1093,21 +1038,21 @@ const AddMaterialScreen: React.FC = () => {
                       onPress={() => setMostrarNuevoTipo(true)}
                       disabled={modoEliminarTipo}
                     >
-                      <Text style={{ color: '#00e676', fontWeight: 'bold' }}>Agregar +</Text>
+                      <Text style={{ color: '#00e676', fontWeight: 'bold' }}>{t.add}</Text>
                     </TouchableOpacity>
                   </View>
                   {mostrarNuevoTipo && (
                     <View style={styles.nuevaCategoriaContainer}>
-                      <Text style={styles.label}>Nuevo tipo</Text>
+                      <Text style={styles.label}>{t.newType}</Text>
                       <TextInput
                         style={styles.input}
                         value={nuevoTipo}
                         onChangeText={setNuevoTipo}
-                        placeholder={`Nombre del tipo de ${material.categoria.toLowerCase()}`}
+                        placeholder={`${t.nameOf}${material.categoria.toLowerCase()}`}
                       />
                       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
                         <TouchableOpacity onPress={() => { setMostrarNuevoTipo(false); setNuevoTipo(''); }} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}> 
-                          <Text style={{ color: '#222' }}>Cancelar</Text>
+                          <Text style={{ color: '#222' }}>{t.cancel}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => {
@@ -1122,7 +1067,7 @@ const AddMaterialScreen: React.FC = () => {
                           style={[styles.pastilla, { backgroundColor: '#00e676' }, !nuevoTipo.trim() && { opacity: 0.5 }]}
                           disabled={!nuevoTipo.trim()}
                         > 
-                          <Text style={{ color: '#222', fontWeight: 'bold' }}>Agregar</Text>
+                          <Text style={{ color: '#222', fontWeight: 'bold' }}>{t.add}</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1133,18 +1078,18 @@ const AddMaterialScreen: React.FC = () => {
                       style={{ backgroundColor: '#e53935', borderRadius: 10, padding: 10, alignItems: 'center', marginBottom: 8 }}
                       onPress={() => setMostrarConfirmarEliminarTipo(true)}
                     >
-                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Borrar ({tiposSeleccionados.length})</Text>
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t.deleteSelected} ({tiposSeleccionados.length})</Text>
                     </TouchableOpacity>
                   )}
                   {/* Modal de confirmación para eliminar tipos */}
                   <Modal visible={mostrarConfirmarEliminarTipo} transparent animationType="fade">
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
                       <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350, borderColor: '#e53935', borderWidth: 2 }}>
-                        <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>¿Eliminar los tipos seleccionados?</Text>
-                        <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>Esta acción no se puede deshacer.</Text>
+                        <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{t.confirmDeleteTypes}</Text>
+                        <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>{t.thisActionCannotBeUndone}</Text>
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
                           <TouchableOpacity onPress={() => setMostrarConfirmarEliminarTipo(false)} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}> 
-                            <Text style={{ color: '#222' }}>Cancelar</Text>
+                            <Text style={{ color: '#222' }}>{t.cancel}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => {
@@ -1157,7 +1102,7 @@ const AddMaterialScreen: React.FC = () => {
                             }}
                             style={[styles.pastilla, { backgroundColor: '#e53935' }]}
                           >
-                            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Eliminar</Text>
+                            <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t.delete}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1167,8 +1112,8 @@ const AddMaterialScreen: React.FC = () => {
               )}
               {mostrarColor && (
                 <>
-                  <Text style={styles.label}>Color</Text>
-                  <Text style={{ color: '#a0a0a0', marginBottom: 4 }}>Selecciona un color:</Text>
+                  <Text style={styles.label}>{t.color}</Text>
+                  <Text style={{ color: '#a0a0a0', marginBottom: 4 }}>{t.selectColor}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                     {PALETA_COLORES.map((col) => (
                       <TouchableOpacity
@@ -1195,27 +1140,27 @@ const AddMaterialScreen: React.FC = () => {
               )}
             </>
           )}
-          <Text style={styles.label}>Precio unitario</Text>
+          <Text style={styles.label}>{t.unitPrice}</Text>
           <TextInput
             style={styles.input}
             value={material.precio}
             onChangeText={(text) => setMaterial({ ...material, precio: text })}
-            placeholder="Ej: 250.00"
+            placeholder={t.examplePrice}
             keyboardType="numeric"
           />
-          <Text style={styles.label}>Cantidad disponible</Text>
+          <Text style={styles.label}>{t.availableQuantity}</Text>
           <TextInput
             style={styles.input}
             value={material.cantidad}
             onChangeText={(text) => setMaterial({ ...material, cantidad: text })}
-            placeholder="Ej: 10"
+            placeholder={t.exampleQuantity}
             keyboardType="numeric"
           />
       </View>
 
         {/* Botón Guardar */}
         <TouchableOpacity style={[styles.guardarBtn, !puedeGuardar && { opacity: 0.5 }]} onPress={handleGuardar} disabled={!puedeGuardar}>
-          <Text style={styles.guardarText}>GUARDAR</Text>
+          <Text style={styles.guardarText}>{t.save}</Text>
         </TouchableOpacity>
        {/* Modal de alerta personalizado */}
        <Modal
@@ -1227,14 +1172,14 @@ const AddMaterialScreen: React.FC = () => {
          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
            <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350, borderColor: alertType === 'success' ? '#00e676' : '#e53935', borderWidth: 2 }}>
              <Text style={{ color: alertType === 'success' ? '#00e676' : '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
-               {alertType === 'success' ? '¡Éxito!' : 'Error'}
+               {alertType === 'success' ? t.success : t.error}
              </Text>
              <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>{alertMessage}</Text>
              <TouchableOpacity
                style={{ marginTop: 10, backgroundColor: alertType === 'success' ? '#00e676' : '#e53935', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
                onPress={() => setShowAlert(false)}
              >
-               <Text style={{ color: alertType === 'success' ? '#222' : '#fff', fontWeight: 'bold', fontSize: 16 }}>Cerrar</Text>
+               <Text style={{ color: alertType === 'success' ? '#222' : '#fff', fontWeight: 'bold', fontSize: 16 }}>{t.close}</Text>
              </TouchableOpacity>
            </View>
          </View>

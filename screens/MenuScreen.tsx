@@ -7,6 +7,8 @@ import { signOut } from 'firebase/auth'
 import { getDocs, collection, getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
+import { useLanguage } from '../utils/LanguageProvider';
+import translations from '../utils/locales';
 
 // Simulación de datos locales para estadísticas y categorías
 const estadisticasEjemplo = {
@@ -22,14 +24,16 @@ const estadisticasEjemplo = {
   pedidosPendientes: 1
 };
 const categoriasEjemplo = [
-  { nombre: 'Filamentos', cantidad: 2, color: '#00e676' },
-  { nombre: 'Resinas', cantidad: 1, color: '#2196f3' },
-  { nombre: 'Pinturas', cantidad: 0, color: '#ff9800' },
-  { nombre: 'Aros de llavero', cantidad: 0, color: '#9c27b0' }
+      { nombre: t.filaments, cantidad: 2, color: '#00e676' },
+    { nombre: t.resins, cantidad: 1, color: '#2196f3' },
+    { nombre: t.paints, cantidad: 0, color: '#ff9800' },
+    { nombre: t.keychainRings, cantidad: 0, color: '#9c27b0' }
 ];
 
 const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolean) => void }) => {
   const navigation = useNavigation();
+  const { lang, setLang } = useLanguage();
+  const t = translations[lang];
   
   // Estado para estadísticas y categorías
   const [estadisticas, setEstadisticas] = useState(estadisticasEjemplo);
@@ -135,9 +139,9 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         });
         // Asignar color por categoría
         Object.values(categorias).forEach((cat: any) => {
-          if (cat.nombre.toLowerCase().includes('filamento')) cat.color = '#00e676';
-          else if (cat.nombre.toLowerCase().includes('resina')) cat.color = '#2196f3';
-          else if (cat.nombre.toLowerCase().includes('pintura')) cat.color = '#ff9800';
+              if (cat.nombre.toLowerCase().includes(t.filament.toLowerCase())) cat.color = '#00e676';
+    else if (cat.nombre.toLowerCase().includes(t.resin.toLowerCase())) cat.color = '#2196f3';
+    else if (cat.nombre.toLowerCase().includes(t.paint.toLowerCase())) cat.color = '#ff9800';
           else if (cat.nombre.toLowerCase().includes('aro')) cat.color = '#9c27b0';
           else cat.color = '#b0b0b0';
         });
@@ -146,8 +150,8 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         let filamentoConsumido = 0;
         let resinaConsumida = 0;
         materiales.forEach(mat => {
-          if (mat.categoria === 'Filamento') filamentoConsumido += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
-          if (mat.categoria === 'Resina') resinaConsumida += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
+              if (mat.categoria === t.filament) filamentoConsumido += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
+    if (mat.categoria === t.resin) resinaConsumida += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
         });
 
         // Proyectos completados
@@ -241,7 +245,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
 
   // Calcular datos reales para la gráfica circular de tipos de filamento
   const tiposFilamentoContador: Record<string, number> = {};
-  materiales.filter(m => m.categoria === 'Filamento').forEach(m => {
+  materiales.filter(m => m.categoria === t.filament).forEach(m => {
     const tipo = m.tipo || 'Otro';
     tiposFilamentoContador[tipo] = (tiposFilamentoContador[tipo] || 0) + 1;
   });
@@ -256,6 +260,15 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
 
   return (
     <ScrollView style={styles.container}>
+      {/* Selector de idioma global */}
+      <View style={{ alignItems: 'flex-end', marginTop: 20, marginRight: 20 }}>
+        <TouchableOpacity
+          style={{ backgroundColor: '#181818', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 16, borderWidth: 1, borderColor: '#00e676' }}
+          onPress={() => setLang(lang === 'es' ? 'en' : 'es')}
+        >
+          <Text style={{ color: '#00e676', fontWeight: 'bold' }}>{lang === 'es' ? 'ENGLISH' : 'ESPAÑOL'}</Text>
+        </TouchableOpacity>
+      </View>
       {/* Header con foto de usuario */}
       <View style={styles.header}>
         <View style={styles.userInfo}>
@@ -283,7 +296,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             <Text style={styles.userName}>{nombreUsuario}</Text>
             <Text style={styles.userEmail}>{emailUsuario}</Text>
             <View style={styles.userLevel}>
-              <Text style={styles.levelText}>Nivel: {nivelNumerico} ({nivelUsuario})</Text>
+              <Text style={styles.levelText}>{t.level}: {nivelNumerico} ({nivelUsuario})</Text>
             </View>
           </View>
         </View>
@@ -291,36 +304,36 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
 
       {/* Estadísticas principales */}
       <View style={styles.statsContainer}>
-        <Text style={styles.sectionTitle}>Estadísticas Generales</Text>
+        <Text style={styles.sectionTitle}>{t.generalStats}</Text>
         
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{estadisticas.proyectosCompletados.toLocaleString('es-MX')}</Text>
-            <Text style={styles.statLabel}>Proyectos completados</Text>
+            <Text style={styles.statLabel}>{t.completedProjects}</Text>
             <Text style={styles.statIcon}>✅</Text>
           </View>
           
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{Number(estadisticas.tiempoImpresion).toLocaleString('es-MX', { maximumFractionDigits: 1 })}h</Text>
-            <Text style={styles.statLabel}>Tiempo total de impresión</Text>
+            <Text style={styles.statLabel}>{t.totalPrintingTime}</Text>
             <Text style={styles.statIcon}>⏱️</Text>
           </View>
           
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{Number(estadisticas.tiempoPromedioProyecto).toLocaleString('es-MX', { maximumFractionDigits: 1 })}h</Text>
-            <Text style={styles.statLabel}>Tiempo promedio por proyecto</Text>
+            <Text style={styles.statLabel}>{t.averageProjectTime}</Text>
             <Text style={styles.statIcon}>📊</Text>
           </View>
           
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{estadisticas.materialesDisponibles.toLocaleString('es-MX')}</Text>
-            <Text style={styles.statLabel}>Materiales disponibles</Text>
+            <Text style={styles.statLabel}>{t.availableMaterials}</Text>
             <Text style={styles.statIcon}>📦</Text>
           </View>
         </View>
         {/* Gráfica circular de tipos de filamento */}
         <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
-          <Text style={[styles.sectionTitle, { textAlign: 'center', marginBottom: 8 }]}>Tipos de Filamento</Text>
+          <Text style={[styles.sectionTitle, { textAlign: 'center', marginBottom: 8 }]}>{t.filamentTypes}</Text>
           <PieChart
             data={pieData}
             width={Dimensions.get('window').width - 64}
@@ -377,12 +390,12 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
 
       {/* Consumo de materiales */}
       <View style={styles.materialsContainer}>
-        <Text style={styles.sectionTitle}>Consumo de Materiales</Text>
+        <Text style={styles.sectionTitle}>{t.materialConsumption}</Text>
         
         <View style={styles.materialStats}>
           <View style={styles.materialCard}>
             <View style={styles.materialHeader}>
-              <Text style={styles.materialTitle}>Filamento</Text>
+              <Text style={styles.materialTitle}>{t.filament}</Text>
               <Text style={styles.materialAmount}>{estadisticas.filamentoConsumido}g</Text>
             </View>
             <View style={styles.progressBar}>
@@ -394,12 +407,12 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
                 }
               ]} />
             </View>
-            <Text style={styles.materialSubtext}>Consumido en {estadisticas.proyectosCompletados} proyectos</Text>
+            <Text style={styles.materialSubtext}>{t.consumedIn} {estadisticas.proyectosCompletados} {t.projects}</Text>
           </View>
           
           <View style={styles.materialCard}>
             <View style={styles.materialHeader}>
-              <Text style={styles.materialTitle}>Tiempo de Impresión</Text>
+              <Text style={styles.materialTitle}>{t.printingTime}</Text>
               <Text style={styles.materialAmount}>{estadisticas.tiempoImpresion.toFixed(1)}h</Text>
             </View>
             <View style={styles.progressBar}>
@@ -411,14 +424,14 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
                 }
               ]} />
             </View>
-            <Text style={styles.materialSubtext}>Tiempo total de impresión</Text>
+            <Text style={styles.materialSubtext}>{t.totalPrintingTime}</Text>
           </View>
         </View>
       </View>
 
       {/* Categorías de materiales */}
       <View style={styles.categoriesContainer}>
-        <Text style={styles.sectionTitle}>Materiales por Categoría</Text>
+        <Text style={styles.sectionTitle}>{t.materialCategories}</Text>
         
         {categoriasMateriales.map((categoria, index) => (
           <View key={index} style={styles.categoryItem}>
@@ -426,49 +439,49 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
               <View style={[styles.categoryDot, { backgroundColor: categoria.color }]} />
               <Text style={styles.categoryName}>{categoria.nombre}</Text>
             </View>
-            <Text style={styles.categoryAmount}>{categoria.cantidad} materiales</Text>
+            <Text style={styles.categoryAmount}>{categoria.cantidad} {t.materials}</Text>
           </View>
         ))}
       </View>
 
       {/* Métricas financieras */}
       <View style={styles.financialContainer}>
-        <Text style={styles.sectionTitle}>Métricas Financieras</Text>
+        <Text style={styles.sectionTitle}>{t.financialMetrics}</Text>
         
         <View style={styles.financialGrid}>
           <View style={styles.financialCard}>
-            <Text style={styles.financialLabel}>Costo total materiales</Text>
+            <Text style={styles.financialLabel}>{t.totalMaterialCost}</Text>
             <Text style={styles.financialAmount}>
               {Number(estadisticas.costoTotalMateriales).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
             </Text>
-            <Text style={styles.financialPeriod}>Inventario actual</Text>
+            <Text style={styles.financialPeriod}>{t.currentInventory}</Text>
           </View>
           
           <View style={styles.financialCard}>
-            <Text style={styles.financialLabel}>Valor total proyectos</Text>
+            <Text style={styles.financialLabel}>{t.totalProjectValue}</Text>
             <Text style={[styles.financialAmount, { color: '#00e676' }]}> 
               {Number(estadisticas.ganancias).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
             </Text>
-            <Text style={styles.financialPeriod}>Todos los proyectos</Text>
+            <Text style={styles.financialPeriod}>{t.allProjects}</Text>
           </View>
           
           <View style={styles.financialCard}>
-            <Text style={styles.financialLabel}>Filamento consumido</Text>
+            <Text style={styles.financialLabel}>{t.filamentConsumed}</Text>
             <Text style={styles.financialAmount}>{Number(estadisticas.filamentoConsumido).toLocaleString('es-MX')}g</Text>
-            <Text style={styles.financialPeriod}>Total utilizado</Text>
+            <Text style={styles.financialPeriod}>{t.totalUsed}</Text>
           </View>
           
           <View style={styles.financialCard}>
-            <Text style={styles.financialLabel}>Eficiencia</Text>
+            <Text style={styles.financialLabel}>{t.efficiency}</Text>
             <Text style={[styles.financialAmount, { color: '#ff9800' }]}>{Number(estadisticas.eficiencia).toLocaleString('es-MX')}%</Text>
-            <Text style={styles.financialPeriod}>Proyectos/hora</Text>
+            <Text style={styles.financialPeriod}>{t.projectsPerHour}</Text>
           </View>
         </View>
       </View>
 
       {/* Acciones rápidas */}
       <View style={styles.actionsContainer}>
-        <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
+        <Text style={styles.sectionTitle}>{t.quickActions}</Text>
         
         <View style={styles.actionsGrid}>
           <TouchableOpacity 
@@ -476,7 +489,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             onPress={() => handleQuickAction('add')}
           >
             <Text style={styles.actionIcon}>➕</Text>
-            <Text style={styles.actionText}>Agregar material</Text>
+            <Text style={styles.actionText}>{t.addMaterial}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -484,7 +497,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             onPress={() => handleQuickAction('inventory')}
           >
             <Text style={styles.actionIcon}>📦</Text>
-            <Text style={styles.actionText}>Inventario</Text>
+            <Text style={styles.actionText}>{t.inventory}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -492,7 +505,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             onPress={() => handleQuickAction('calculator')}
           >
             <Text style={styles.actionIcon}>🧮</Text>
-            <Text style={styles.actionText}>Calculadora</Text>
+            <Text style={styles.actionText}>{t.calculator}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -500,14 +513,14 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             onPress={() => handleQuickAction('history')}
           >
             <Text style={styles.actionIcon}>📝</Text>
-            <Text style={styles.actionText}>Historial</Text>
+            <Text style={styles.actionText}>{t.history}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Botón de cerrar sesión */}
       <TouchableOpacity style={[styles.logoutButton, { marginBottom: 32 }]} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+        <Text style={styles.logoutButtonText}>{t.logout}</Text>
       </TouchableOpacity>
     </ScrollView>
   )

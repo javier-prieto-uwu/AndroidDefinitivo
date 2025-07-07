@@ -4,10 +4,14 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { auth, app } from '../api/firebase';
 import { getDocs, collection, getFirestore, query, orderBy, limit } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../utils/LanguageProvider';
+import translations from '../utils/locales';
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
   const db = getFirestore(app);
+  const { lang, setLang } = useLanguage();
+  const t = translations[lang];
 
   // Estado para materiales y estadísticas
   const [materiales, setMateriales] = useState<any[]>([]);
@@ -88,7 +92,7 @@ const HomeScreen: React.FC = () => {
     <ScrollView style={styles.contenedorP}>
       {/* Encabezado */}
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Bienvenido</Text>
+        <Text style={styles.welcomeText}>{t.welcome}</Text>
         <Text style={styles.username}>{auth.currentUser?.email || 'Sin correo'}</Text>
       </View>
 
@@ -96,7 +100,7 @@ const HomeScreen: React.FC = () => {
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{estadisticas.totalMateriales}</Text>
-          <Text style={styles.statLabel}>Materiales</Text>
+          <Text style={styles.statLabel}>{t.materials}</Text>
           <Text style={styles.statIcon}>📦</Text>
         </View>
         
@@ -109,20 +113,20 @@ const HomeScreen: React.FC = () => {
           >
             {estadisticas.valorTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
           </Text>
-          <Text style={styles.statLabel}>Valor total</Text>
+          <Text style={styles.statLabel}>{t.totalValue}</Text>
           <Text style={styles.statIcon}>💰</Text>
         </View>
         
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{estadisticas.stockTotal}</Text>
-          <Text style={styles.statLabel}>Stock total</Text>
+          <Text style={styles.statLabel}>{t.totalStock}</Text>
           <Text style={styles.statIcon}>📊</Text>
         </View>
       </View>
 
       {/* Última cotización */}
       <View style={styles.quoteContainer}>
-        <Text style={styles.quoteLabel}>Última Cotización</Text>
+        <Text style={styles.quoteLabel}>{t.lastQuote}</Text>
         <View style={styles.quoteAmountContainer}>
           <Text style={styles.quoteAmount}>${estadisticas.ultimaCotizacion}</Text>
           <Text style={styles.currency}>MXN</Text>
@@ -132,12 +136,12 @@ const HomeScreen: React.FC = () => {
       {/* Lista de materiales agrupada por categoría */}
       <View style={styles.materialsContainer}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Materiales disponibles</Text>
+          <Text style={styles.sectionTitle}>{t.materialsAvailable}</Text>
           <TouchableOpacity 
             style={styles.addButton}
             onPress={() => navigation.navigate('Agregar' as never)}
           >
-            <Text style={styles.addButtonText}>+ Agregar</Text>
+            <Text style={styles.addButtonText}>{t.add}</Text>
           </TouchableOpacity>
         </View>
 
@@ -145,7 +149,7 @@ const HomeScreen: React.FC = () => {
           <ActivityIndicator size="large" color="#00e676" style={{ marginTop: 40 }} />
         ) : materiales.length === 0 ? (
           <Text style={{ color: '#a0a0a0', textAlign: 'center', marginTop: 20 }}>
-            No hay materiales registrados.
+            {t.noMaterials}
           </Text>
         ) : (
           // Agrupar materiales por categoría
@@ -180,7 +184,7 @@ const HomeScreen: React.FC = () => {
                     </View>
                     <View style={styles.materialDetails}>
                       <View style={styles.stockContainer}>
-                        <Text style={styles.stockLabel}>Stock:</Text>
+                        <Text style={styles.stockLabel}>{t.stock}</Text>
                         <Text style={styles.materialStock}>{material.cantidad || 0} unidades</Text>
                       </View>
                       <Text style={styles.materialDescription}>{material.descripcion || ''}</Text>
