@@ -1144,7 +1144,13 @@ const AddMaterialScreen: React.FC = () => {
           <TextInput
             style={styles.input}
             value={material.precio}
-            onChangeText={(text) => setMaterial({ ...material, precio: text })}
+            onChangeText={(text) => {
+              // Remover el símbolo $ si ya existe para evitar duplicados
+              let cleanText = text.replace(/^\$/, '');
+              // Agregar $ al inicio si no está vacío
+              const formattedText = cleanText ? `$${cleanText}` : '';
+              setMaterial({ ...material, precio: formattedText });
+            }}
             placeholder={t.examplePrice}
             keyboardType="numeric"
           />

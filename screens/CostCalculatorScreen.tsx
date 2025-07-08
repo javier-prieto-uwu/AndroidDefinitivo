@@ -77,10 +77,16 @@ const MaterialMultipleSelector: React.FC<{
                   return mat.precio || '0';
                 case t.filament:
                 case t.resin:
-                default:
-                  return mat.precioBobina || mat.precio || '0';
+                default: {
+                  const precioBobina = parseFloat(mat.precioBobina || mat.precio || '0');
+                  const pesoBobina = parseFloat(mat.pesoBobina || mat.peso || '0');
+                  const cantidadTotal = parseFloat(mat.cantidadRestante || mat.cantidad || '0');
+                  const numeroBobinas = pesoBobina > 0 ? cantidadTotal / pesoBobina : 0;
+                  const costoTotal = precioBobina * numeroBobinas;
+                  return costoTotal.toFixed(0);
+                }
               }
-            })()}
+            })()} total
           </Text>
         </View>
       </View>
@@ -159,14 +165,21 @@ const MaterialMultipleSelector: React.FC<{
     
     switch (categoria) {
       case t.filament:
-      case t.resin:
+      case t.resin: {
+        const precioBobina = parseFloat(material.precioBobina || material.precio || '0');
+        const pesoBobina = parseFloat(material.pesoBobina || material.peso || '0');
+        const cantidadTotal = parseFloat(material.cantidadRestante || material.cantidad || '0');
+        const numeroBobinas = pesoBobina > 0 ? cantidadTotal / pesoBobina : 0;
+        const costoTotal = precioBobina * numeroBobinas;
+        
         return {
-          precio: material.precioBobina || material.precio || '0.00',
-          peso: material.pesoBobina || material.peso || '0',
-          unidad: 'gramos',
+          precio: costoTotal.toFixed(2),
+          peso: cantidadTotal.toString(),
+          unidad: 'gramos totales',
           labelPeso: t.bobbinWeight,
           labelCosto: t.materialCost
         };
+      }
       case t.paint:
         return {
           precio: material.precio || '0.00',
@@ -273,6 +286,37 @@ const MaterialMultipleSelector: React.FC<{
       [campoCantidad]: text,
     };
     onMaterialChange(index, materialActualizado);
+    
+    // Verificar stock insuficiente para materiales múltiples
+    if (text) {
+      const cantidadSolicitada = parseFloat(text);
+      const cantidadDisponible = parseFloat(materialSeleccionado.cantidadRestante || materialSeleccionado.cantidad || '0');
+      
+      if (cantidadSolicitada > cantidadDisponible) {
+        let unidad = '';
+        switch (categoria) {
+          case 'Filamento':
+          case 'Resina':
+            unidad = 'g';
+            break;
+          case 'Pintura':
+            unidad = 'ml';
+            break;
+          case 'Aros de llavero':
+          default:
+            unidad = 'unidades';
+            break;
+        }
+        
+        const mensaje = t.insufficientStockMessage
+          .replace('{0}', cantidadSolicitada.toString())
+          .replace('{1}', unidad)
+          .replace('{2}', cantidadDisponible.toString());
+        
+        // Usar Alert en lugar de showCustomAlert ya que no está disponible en este contexto
+        Alert.alert(t.insufficientStockWarning, mensaje);
+      }
+    }
   };
 
   const handleBlur = () => {
@@ -461,6 +505,40 @@ const CostCalculatorScreen: React.FC = () => {
         [name]: value
       }
     }));
+    
+    // Verificar stock insuficiente cuando se cambia la cantidad
+    if (name === 'gramosUtilizados' && value) {
+      const mat = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id);
+      if (mat) {
+        const cantidadSolicitada = parseFloat(value);
+        const cantidadDisponible = parseFloat(mat.cantidadRestante || mat.cantidad || '0');
+        
+        if (cantidadSolicitada > cantidadDisponible) {
+          const categoria = mat.categoria || 'Filamento';
+          let unidad = '';
+          switch (categoria) {
+            case 'Filamento':
+            case 'Resina':
+              unidad = 'g';
+              break;
+            case 'Pintura':
+              unidad = 'ml';
+              break;
+            case 'Aros de llavero':
+            default:
+              unidad = 'unidades';
+              break;
+          }
+          
+          const mensaje = t.insufficientStockMessage
+            .replace('{0}', cantidadSolicitada.toString())
+            .replace('{1}', unidad)
+            .replace('{2}', cantidadDisponible.toString());
+          
+          showCustomAlert(t.insufficientStockWarning, mensaje, 'error');
+        }
+      }
+    }
   };
 
   const handleManoObraChange = (name: string, value: string) => {
@@ -829,6 +907,12 @@ const CostCalculatorScreen: React.FC = () => {
     setShowAlert(true);
   };
 
+  // Filtrar materiales disponibles (no agotados)
+  const materialesDisponibles = materialesGuardados.filter(material => {
+    const cantidadRestante = parseFloat(material.cantidadRestante || material.cantidad || '0');
+    return cantidadRestante > 0;
+  });
+
   // Renderizar selector de materiales usando el componente MaterialList
   const renderSelectorMateriales = () => {
     if (cargandoMateriales) {
@@ -839,13 +923,13 @@ const CostCalculatorScreen: React.FC = () => {
       return <Text style={{ color: 'red', textAlign: 'center', marginVertical: 10 }}>{errorMateriales}</Text>;
     }
     
-    if (materialesGuardados.length === 0) {
-      return <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 10 }}>{t.noSavedMaterials}</Text>;
+    if (materialesDisponibles.length === 0) {
+      return <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 10 }}>{t.noAvailableMaterials}</Text>;
     }
     
     const materialesAMostrar = verMasMateriales 
-      ? materialesGuardados 
-      : materialesGuardados.slice(0, 5);
+      ? materialesDisponibles 
+      : materialesDisponibles.slice(0, 5);
     
     return (
       <MaterialList
@@ -858,7 +942,7 @@ const CostCalculatorScreen: React.FC = () => {
 
   // Renderizar botones de ver más/menos
   const renderBotonesVerMas = () => {
-    if (cargandoMateriales || errorMateriales || materialesGuardados.length <= 5) return null;
+    if (cargandoMateriales || errorMateriales || materialesDisponibles.length <= 5) return null;
     
     return (
       <TouchableOpacity
@@ -977,7 +1061,7 @@ const CostCalculatorScreen: React.FC = () => {
                   <MaterialMultipleSelector
                     key={index}
                     index={index}
-                    materialesGuardados={materialesGuardados}
+                    materialesGuardados={materialesDisponibles}
                     onMaterialChange={(materialIndex, material) => {
                       const nuevosMateriales = [...(calculo.materialesMultiples || [])];
                       
@@ -1143,7 +1227,16 @@ const CostCalculatorScreen: React.FC = () => {
                             default:
                               return material.precioBobina || material.precio || '0';
                           }
-                        })()} MXN
+                        })()} MXN {(() => {
+                          const categoria = material.categoria || 'Filamento';
+                          switch (categoria) {
+                            case 'Filamento':
+                            case 'Resina':
+                              return 'total';
+                            default:
+                              return '';
+                          }
+                        })()}
                       </Text>
                     </View>
                   </View>
@@ -1300,7 +1393,18 @@ const CostCalculatorScreen: React.FC = () => {
                 <View style={styles.infoDisplayRow}>
                   <Ionicons name="cash-outline" size={16} color="#ffd600" />
                   <Text style={styles.infoDisplayText}>
-                    ${calculo.filamento.precioBobina || '0.00'} MXN
+                    ${(() => {
+                      const mat = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id) as any;
+                      if (mat) {
+                        const precioBobina = parseFloat(mat.precioBobina || mat.precio || '0');
+                        const pesoBobina = parseFloat(mat.pesoBobina || mat.peso || '0');
+                        const cantidadTotal = parseFloat(mat.cantidadRestante || mat.cantidad || '0');
+                        const numeroBobinas = pesoBobina > 0 ? cantidadTotal / pesoBobina : 0;
+                        const costoTotal = precioBobina * numeroBobinas;
+                        return costoTotal.toFixed(2);
+                      }
+                      return '0.00';
+                    })()} MXN total
                   </Text>
                 </View>
               </View>
@@ -1311,9 +1415,9 @@ const CostCalculatorScreen: React.FC = () => {
                   const categoria = mat?.categoria || 'Filamento';
                   switch (categoria) {
                     case 'Filamento':
-                      return t.bobbinWeight;
+                      return t.bobbinWeight + ' (total)';
                     case 'Resina':
-                      return t.resinWeight;
+                      return t.resinWeight + ' (total)';
                     case 'Pintura':
                       return t.totalQuantity;
                     case 'Aros de llavero':
@@ -1380,7 +1484,20 @@ const CostCalculatorScreen: React.FC = () => {
               </View>
               
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              (() => {
+                const mat = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id);
+                if (mat && calculo.filamento.gramosUtilizados) {
+                  const cantidadSolicitada = parseFloat(calculo.filamento.gramosUtilizados);
+                  const cantidadDisponible = parseFloat(mat.cantidadRestante || mat.cantidad || '0');
+                  if (cantidadSolicitada > cantidadDisponible) {
+                    return { borderColor: '#e53935', borderWidth: 2 };
+                  }
+                }
+                return {};
+              })()
+            ]}
             value={calculo.filamento.gramosUtilizados}
             onChangeText={(text) => handleFilamentoChange('gramosUtilizados', text)}
             onBlur={calcularCostoFilamento}
@@ -1401,6 +1518,23 @@ const CostCalculatorScreen: React.FC = () => {
             keyboardType="numeric"
             editable={descontarCantidad}
           />
+          
+          {/* Advertencia de stock insuficiente */}
+          {(() => {
+            const mat = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id);
+            if (mat && calculo.filamento.gramosUtilizados) {
+              const cantidadSolicitada = parseFloat(calculo.filamento.gramosUtilizados);
+              const cantidadDisponible = parseFloat(mat.cantidadRestante || mat.cantidad || '0');
+              if (cantidadSolicitada > cantidadDisponible) {
+                return (
+                  <Text style={{ color: '#e53935', fontSize: 12, marginTop: 4, fontStyle: 'italic' }}>
+                    ⚠️ Stock insuficiente: tienes {cantidadDisponible} disponibles
+                  </Text>
+                );
+              }
+            }
+            return null;
+          })()}
           
           <View style={styles.resultContainer}>
                 <Text style={styles.resultLabel}>{t.totalMaterialCost}</Text>
@@ -1481,7 +1615,16 @@ const CostCalculatorScreen: React.FC = () => {
                                 default:
                                   return mat.precioBobina || mat.precio || '0';
                               }
-                            })()} MXN
+                            })()} MXN {(() => {
+                              const categoria = mat.categoria || 'Filamento';
+                              switch (categoria) {
+                                case 'Filamento':
+                                case 'Resina':
+                                  return 'por bobina';
+                                default:
+                                  return '';
+                              }
+                            })()}
                           </Text>
                         </View>
                       );

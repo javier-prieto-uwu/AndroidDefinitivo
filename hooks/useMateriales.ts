@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getFirestore, collection, getDocs, addDoc, deleteDoc, query, where, doc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, deleteDoc, updateDoc, query, where, doc, onSnapshot } from 'firebase/firestore';
 import { auth, app } from '../api/firebase';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -26,6 +26,7 @@ interface UseMaterialesReturn {
   error: string | null;
   cargarMateriales: () => Promise<void>;
   agregarMaterial: (material: Omit<Material, 'id'>) => Promise<void>;
+  actualizarMaterial: (materialId: string, material: Partial<Material>) => Promise<void>;
   eliminarMaterial: (materialId: string) => Promise<void>;
   materialesFiltrados: Material[];
   setFiltro: (filtro: string) => void;
@@ -70,11 +71,25 @@ export const useMateriales = (): UseMaterialesReturn => {
 
     try {
       await addDoc(collection(db, 'usuarios', user.uid, 'materiales'), material);
-      await cargarMateriales(); // Recargar materiales
+      // No necesitamos recargar manualmente porque el listener se encargará
     } catch (e: any) {
       throw new Error('Error al guardar el material: ' + (e.message || e));
     }
-  }, [db, cargarMateriales]);
+  }, [db]);
+
+  const actualizarMaterial = useCallback(async (materialId: string, materialData: Partial<Material>) => {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('Debes iniciar sesión para actualizar materiales');
+    }
+
+    try {
+      await updateDoc(doc(db, 'usuarios', user.uid, 'materiales', materialId), materialData);
+      // No necesitamos recargar manualmente porque el listener se encargará
+    } catch (e: any) {
+      throw new Error('Error al actualizar el material: ' + (e.message || e));
+    }
+  }, [db]);
 
   const eliminarMaterial = useCallback(async (materialId: string) => {
     const user = auth.currentUser;
@@ -84,11 +99,11 @@ export const useMateriales = (): UseMaterialesReturn => {
 
     try {
       await deleteDoc(doc(db, 'usuarios', user.uid, 'materiales', materialId));
-      await cargarMateriales(); // Recargar materiales
+      // No necesitamos recargar manualmente porque el listener se encargará
     } catch (e: any) {
       throw new Error('Error al eliminar el material: ' + (e.message || e));
     }
-  }, [db, cargarMateriales]);
+  }, [db]);
 
   // Filtrar materiales por búsqueda
   const materialesFiltrados = materiales.filter(mat => {
@@ -96,11 +111,36 @@ export const useMateriales = (): UseMaterialesReturn => {
     return texto.includes(filtro.toLowerCase());
   });
 
-  // Cargar materiales cuando la pantalla gane el foco
+  // Listener en tiempo real para materiales
   useFocusEffect(
     useCallback(() => {
-      cargarMateriales();
-    }, [cargarMateriales])
+      const user = auth.currentUser;
+      if (!user) {
+        setMateriales([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      const unsubscribe = onSnapshot(
+        collection(db, 'usuarios', user.uid, 'materiales'),
+        (snapshot) => {
+          const mats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Material[];
+          setMateriales(mats);
+          setLoading(false);
+        },
+        (error) => {
+          console.error('Error en listener de materiales:', error);
+          setError('Error al cargar materiales: ' + error.message);
+          setLoading(false);
+        }
+      );
+
+      // Cleanup function
+      return () => unsubscribe();
+    }, [db])
   );
 
   return {
@@ -109,6 +149,7 @@ export const useMateriales = (): UseMaterialesReturn => {
     error,
     cargarMateriales,
     agregarMaterial,
+    actualizarMaterial,
     eliminarMaterial,
     materialesFiltrados,
     setFiltro,

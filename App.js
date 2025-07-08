@@ -10,7 +10,8 @@ import AddMaterialScreen from './screens/AddMaterialScreen';
 import CostCalculatorScreen from './screens/CostCalculatorScreen';
 import InventoryScreen from './screens/InventoryScreen';
 import PrintScreen from './screens/PrintScreen';
-import MenuScreen from './screens/MenuScreen';
+import PerfilScreen from './screens/MenuScreen';
+import EditMaterialScreen from './screens/EditMaterialScreen';
 import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { ActivityIndicator, View, Dimensions, Platform } from 'react-native';
@@ -209,12 +210,12 @@ function MainTabs({ setIsLoggedIn }) {
         }}
       />
       <Tab.Screen 
-        name={t.menu}
+        name={t.profile}
         options={{
           tabBarIcon: ({ color, focused }) => (
             <TabIcon 
-              focusedName="menu" 
-              unfocusedName="menu-outline" 
+              focusedName="person" 
+              unfocusedName="person-outline" 
               focused={focused} 
               size={iconSize} 
               color={color} 
@@ -223,7 +224,7 @@ function MainTabs({ setIsLoggedIn }) {
           ),
         }}
       >
-        {props => <MenuScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
+        {props => <PerfilScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
       </Tab.Screen>
     </Tab.Navigator>
   );
@@ -284,9 +285,12 @@ export default function App() {
               </Stack.Screen>
             </>
           ) : (
-            <Stack.Screen name="MainTabs">
-              {props => <MainTabs {...props} setIsLoggedIn={setIsLoggedIn} />}
-            </Stack.Screen>
+            <>
+              <Stack.Screen name="MainTabs">
+                {props => <MainTabs {...props} setIsLoggedIn={setIsLoggedIn} />}
+              </Stack.Screen>
+              <Stack.Screen name="EditMaterial" component={EditMaterialScreen} />
+            </>
           )}
         </Stack.Navigator>
       </NavigationContainer>

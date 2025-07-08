@@ -1,17 +1,11 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal } from 'react-native'
-import React, { useState, useRef, useCallback } from 'react'
-import { auth, app } from '../api/firebase'
-import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Image, Modal, Dimensions } from 'react-native'
+import React, { useState, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons';
 import { useMateriales } from '../hooks';
-import { filtrarMateriales } from '../utils';
 import { useLanguage } from '../utils/LanguageProvider';
 import translations from '../utils/locales';
 
-// Simulación de materiales locales
-
-const InventoryScreen: React.FC = () => {
+const InventoryScreen: React.FC = ({ navigation }: any) => {
   const { lang } = useLanguage();
   const t = translations[lang];
   // Usar el hook de materiales
@@ -26,11 +20,12 @@ const InventoryScreen: React.FC = () => {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
-  const isFocused = useIsFocused();
   const [materialAEliminar, setMaterialAEliminar] = useState<any>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
-  const db = getFirestore(app);
+  // Detectar si el dispositivo es pequeño
+  const screenWidth = Dimensions.get('window').width;
+  const isSmallDevice = screenWidth < 400;
 
   // El hook useMateriales ya maneja la carga automática de materiales
 
@@ -40,8 +35,12 @@ const InventoryScreen: React.FC = () => {
     return texto.includes(busqueda.toLowerCase());
   });
 
-  // Agrupar materiales por categoría
-  const categorias = Array.from(new Set(materialesFiltrados.map(m => m.categoria)))
+  // Filtrar materiales agotados y disponibles
+  const materialesAgotados = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') <= 0);
+  const materialesDisponibles = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') > 0);
+
+  // Agrupar materiales por categoría (solo disponibles)
+  const categorias = Array.from(new Set(materialesDisponibles.map(m => m.categoria)))
 
   // Función para navegar a una categoría específica
   const navegarACategoria = (categoria: string) => {
@@ -78,10 +77,6 @@ const InventoryScreen: React.FC = () => {
     arosllaveros: require('../assets/arosllaveros.png'),
   };
 
-  // Filtrar materiales agotados y disponibles
-  const materialesAgotados = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') <= 0);
-  const materialesDisponibles = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') > 0);
-
   // Función para calcular el stock en unidades
   const getStockUnidades = (mat) => {
     const categoria = mat.categoria || t.filament;
@@ -95,6 +90,30 @@ const InventoryScreen: React.FC = () => {
     } else {
       // Para aros de llavero y categorías personalizadas, usar cantidad (stock actual en unidades)
       return Math.floor(parseFloat(mat.cantidad || '0'));
+    }
+  };
+
+  // Función para calcular el porcentaje restante del material
+  const getPorcentajeRestante = (mat) => {
+    const categoria = mat.categoria || t.filament;
+    const cantidadInicial = parseFloat((mat as any).cantidadInicial || mat.cantidad || '0');
+    const cantidadRestante = parseFloat(mat.cantidadRestante || mat.cantidad || '0');
+    
+    if (cantidadInicial <= 0) return 0;
+    
+    if (categoria === t.filament || categoria === t.resin) {
+      // Para filamento y resina: calcular basado en peso total vs peso restante
+      const pesoInicial = cantidadInicial * parseFloat(mat.peso || mat.pesoBobina || '1');
+      const pesoRestante = cantidadRestante;
+      return Math.max(0, Math.min(100, (pesoRestante / pesoInicial) * 100));
+    } else if (categoria === t.paint) {
+      // Para pintura: calcular basado en ml total vs ml restante
+      const mlInicial = cantidadInicial * parseFloat(mat.cantidad || '1');
+      const mlRestante = cantidadRestante;
+      return Math.max(0, Math.min(100, (mlRestante / mlInicial) * 100));
+    } else {
+      // Para aros de llavero y otros: calcular basado en unidades
+      return Math.max(0, Math.min(100, (cantidadRestante / cantidadInicial) * 100));
     }
   };
 
@@ -162,7 +181,7 @@ const InventoryScreen: React.FC = () => {
         <View style={styles.summaryContainer}>
           <Text style={styles.summaryLabel}>{t.totalMaterials}</Text>
           <View style={styles.summaryAmountContainer}>
-            <Text style={styles.summaryAmount}>{cargando ? '...' : materialesFiltrados.length}</Text>
+            <Text style={styles.summaryAmount}>{cargando ? '...' : materialesDisponibles.length}</Text>
             <Text style={styles.summaryUnit}>{t.materials}</Text>
           </View>
         </View>
@@ -174,7 +193,7 @@ const InventoryScreen: React.FC = () => {
             <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 20 }}>{t.loadingMaterials}</Text>
           ) : error ? (
             <Text style={{ color: 'red', textAlign: 'center', marginVertical: 20 }}>{error}</Text>
-          ) : materialesFiltrados.length === 0 ? (
+          ) : materialesDisponibles.length === 0 ? (
             <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 20 }}>{t.noMaterialsRegistered}</Text>
           ) : (
             categorias.map((cat) => (
@@ -184,15 +203,25 @@ const InventoryScreen: React.FC = () => {
               >
                 <Text style={styles.categoriaTitulo}>{cat}</Text>
                 <View style={styles.materialesGrid}>
-                  {materialesFiltrados.filter(m => m.categoria === cat).map((mat) => (
-                    <View key={mat.id} style={styles.materialCapsula}>
-                      {/* Botón eliminar material */}
-                      <TouchableOpacity
-                        style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
-                        onPress={() => { setMaterialAEliminar(mat); setShowDeleteAlert(true); }}
-                      >
-                        <Ionicons name="trash" size={20} color="#e53935" />
-                      </TouchableOpacity>
+                  {materialesDisponibles.filter(m => m.categoria === cat).map((mat) => (
+                    <View key={mat.id} style={[
+                      styles.materialCapsula,
+                      isSmallDevice ? { width: '100%' } : { width: '48%' }
+                    ]}>
+                      {/* Botones de acción */}
+                      <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, flexDirection: 'row' }}>
+                        <TouchableOpacity
+                          style={{ marginRight: 8 }}
+                          onPress={() => navigation.navigate('EditMaterial', { material: mat })}
+                        >
+                          <Ionicons name="create" size={20} color="#00e676" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => { setMaterialAEliminar(mat); setShowDeleteAlert(true); }}
+                        >
+                          <Ionicons name="trash" size={20} color="#e53935" />
+                        </TouchableOpacity>
+                      </View>
                       
                       {/* Imagen del material como título visual */}
                       <Image
@@ -223,6 +252,23 @@ const InventoryScreen: React.FC = () => {
                       
                       {/* Bolita de color prominente */}
                       <View style={[styles.colorCirculo, { backgroundColor: mat.color || '#00e676' }]} />
+                      
+                      {/* Mini gráfica de stock restante */}
+                      <View style={styles.usageChartContainer}>
+                        <View style={styles.usageChart}>
+                          <View style={[
+                            styles.usageChartFill, 
+                            { 
+                              width: `${getPorcentajeRestante(mat)}%`,
+                              backgroundColor: getPorcentajeRestante(mat) < 20 ? '#e53935' : 
+                                             getPorcentajeRestante(mat) < 50 ? '#ff9800' : '#00e676'
+                            }
+                          ]} />
+                        </View>
+                        <Text style={styles.usagePercentage}>
+                          {getPorcentajeRestante(mat).toFixed(0)}% {t.remaining}
+                        </Text>
+                      </View>
                       
                       {/* Detalles del material */}
                       <View style={styles.materialDetalles}>
@@ -303,7 +349,7 @@ const InventoryScreen: React.FC = () => {
               <View style={styles.modalContainer}>
                 <Text style={styles.modalTitle}>⚠️ {t.deleteMaterial}</Text>
                 <Text style={styles.modalMessage}>
-                  {t.confirmDeleteMaterialMessage}
+                  {t.confirmDeleteMaterialMessage.replace('{0}', materialAEliminar?.nombre || '')}
                 </Text>
                 <View style={styles.modalButtons}>
                   <TouchableOpacity onPress={() => setShowDeleteAlert(false)} style={styles.modalButtonCancel}>
@@ -320,15 +366,92 @@ const InventoryScreen: React.FC = () => {
         {materialesAgotados.length > 0 && (
           <View style={{ marginTop: 32 }}>
             <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>{t.outOfStock}</Text>
-            {materialesAgotados.map((mat) => (
-              <View key={mat.id} style={[styles.materialCapsula, { opacity: 0.5 }]}> 
-                <View style={[styles.colorCirculo, { backgroundColor: mat.color || '#00e676' }]} />
-                <View style={styles.materialDetalles}>
-                  <Text style={[styles.detalleLabel, { color: '#e53935' }]}>{mat.nombre}</Text>
-                  <Text style={styles.detalleValor}>{t.stock}: 0 {t.units}</Text>
+            <View style={styles.materialesGrid}>
+              {materialesAgotados.map((mat) => (
+                <View key={mat.id} style={[
+                  styles.materialCapsula,
+                  { opacity: 0.5 },
+                  isSmallDevice ? { width: '100%' } : { width: '48%' }
+                ]}> 
+                  {/* Botones de acción para materiales agotados */}
+                  <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, flexDirection: 'row' }}>
+                    <TouchableOpacity
+                      style={{ marginRight: 8 }}
+                      onPress={() => navigation.navigate('EditMaterial', { material: mat })}
+                    >
+                      <Ionicons name="create" size={20} color="#00e676" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => { setMaterialAEliminar(mat); setShowDeleteAlert(true); }}
+                    >
+                      <Ionicons name="trash" size={20} color="#e53935" />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <Image
+                    source={
+                      mat.imagen && ICONOS_PNG[mat.imagen]
+                        ? ICONOS_PNG[mat.imagen]
+                        : require('../assets/filamento.png')
+                    }
+                    style={styles.materialImage}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.materialInfo}>
+                    <Text style={[styles.materialNombre, { color: '#e53935' }]} numberOfLines={2} ellipsizeMode="tail">
+                      {mat.nombre}
+                    </Text>
+                    <Text style={styles.materialSubtipo} numberOfLines={1} ellipsizeMode="tail">
+                      {mat.tipo || mat.subtipo || 'Sin tipo'}
+                    </Text>
+                  </View>
+                  <View style={[styles.colorCirculo, { backgroundColor: mat.color || '#00e676' }]} />
+                  
+                  {/* Mini gráfica de stock restante para materiales agotados */}
+                  <View style={styles.usageChartContainer}>
+                    <View style={styles.usageChart}>
+                      <View style={[
+                        styles.usageChartFill, 
+                        { 
+                          width: '0%',
+                          backgroundColor: '#e53935'
+                        }
+                      ]} />
+                    </View>
+                    <Text style={styles.usagePercentage}>
+                      0% {t.remaining}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.materialDetalles}>
+                    <View style={styles.detalleFila}>
+                      <Text style={styles.detalleLabel}>{t.price}</Text>
+                      <Text style={styles.detalleValor}>${mat.precio}</Text>
+                    </View>
+                    <View style={styles.detalleFila}>
+                      <Text style={styles.detalleLabel}>{t.initialStock}</Text>
+                      <Text style={styles.detalleValor}>
+                        {((mat as any).cantidadInicial || mat.cantidad || '-') + ' ' + t.units}
+                      </Text>
+                    </View>
+                    <View style={styles.detalleFila}>
+                      <Text style={styles.detalleLabel}>{t.currentStock}</Text>
+                      <Text style={[styles.detalleValor, { color: '#e53935' }]}>0 {t.units} ({t.outOfStock})</Text>
+                    </View>
+                    <View style={styles.detalleFila}>
+                      <Text style={styles.detalleLabel}>{t.remaining}</Text>
+                      <Text style={styles.detalleValor}>0</Text>
+                    </View>
+                    <View style={styles.detalleFila}>
+                      <Text style={styles.detalleLabel}>{t.registeredOn}</Text>
+                      <Text style={styles.detalleValor}>
+                        {mat.fechaRegistro ? new Date(mat.fechaRegistro).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         )}
       </ScrollView>
@@ -577,6 +700,28 @@ const styles = StyleSheet.create({
   modalButtonTextDelete: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  usageChartContainer: {
+    width: '100%',
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  usageChart: {
+    width: '100%',
+    height: 6,
+    backgroundColor: '#333',
+    borderRadius: 3,
+    marginBottom: 4,
+    overflow: 'hidden',
+  },
+  usageChartFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  usagePercentage: {
+    color: '#a0a0a0',
+    fontSize: 10,
+    fontWeight: '500',
   },
 });
 

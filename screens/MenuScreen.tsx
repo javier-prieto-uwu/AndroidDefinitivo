@@ -7,37 +7,29 @@ import { signOut } from 'firebase/auth'
 import { getDocs, collection, getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../utils/LanguageProvider';
 import translations from '../utils/locales';
 
-// Simulación de datos locales para estadísticas y categorías
-const estadisticasEjemplo = {
-  materialesDisponibles: 3,
-  filamentoConsumido: 1240,
-  resinaConsumida: 0,
-  proyectosCompletados: 8,
-  tiempoImpresion: 42.5,
-  costoTotalMateriales: 1500,
-  ganancias: 3200,
-  eficiencia: 80,
-  tiempoPromedioProyecto: '5.3',
-  pedidosPendientes: 1
-};
-const categoriasEjemplo = [
-      { nombre: t.filaments, cantidad: 2, color: '#00e676' },
-    { nombre: t.resins, cantidad: 1, color: '#2196f3' },
-    { nombre: t.paints, cantidad: 0, color: '#ff9800' },
-    { nombre: t.keychainRings, cantidad: 0, color: '#9c27b0' }
-];
-
-const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolean) => void }) => {
+const PerfilScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolean) => void }) => {
   const navigation = useNavigation();
   const { lang, setLang } = useLanguage();
   const t = translations[lang];
   
   // Estado para estadísticas y categorías
-  const [estadisticas, setEstadisticas] = useState(estadisticasEjemplo);
-  const [categoriasMateriales, setCategoriasMateriales] = useState(categoriasEjemplo);
+  const [estadisticas, setEstadisticas] = useState({
+    materialesDisponibles: 0,
+    filamentoConsumido: 0,
+    resinaConsumida: 0,
+    proyectosCompletados: 0,
+    tiempoImpresion: 0,
+    costoTotalMateriales: 0,
+    ganancias: 0,
+    eficiencia: 0,
+    tiempoPromedioProyecto: '0',
+    pedidosPendientes: 0
+  });
+  const [categoriasMateriales, setCategoriasMateriales] = useState([]);
   const [materiales, setMateriales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,8 +38,8 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
   const nombreUsuario = user?.displayName || 'Usuario';
   const emailUsuario = user?.email || '';
   const fotoUsuario = user?.photoURL || 'https://via.placeholder.com/100x100/00e676/ffffff?text=U';
+  
   // Nivel calculado según horas de impresión
-  // Nivel numérico y texto
   const nivelNumerico = Math.floor(estadisticas.tiempoImpresion / 10);
   let nivelUsuario = 'Principiante';
   if (estadisticas.tiempoImpresion >= 150) {
@@ -55,6 +47,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
   } else if (estadisticas.tiempoImpresion >= 50) {
     nivelUsuario = 'Intermedio';
   }
+  
   // Guardar nivel en Firestore si cambia
   React.useEffect(() => {
     const guardarNivel = async () => {
@@ -72,6 +65,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
     };
     guardarNivel();
   }, [nivelNumerico, user]);
+  
   const fechaRegistro = user?.metadata?.creationTime || '';
 
   const db = getFirestore();
@@ -211,8 +205,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         },
         (error) => {
           console.error('Error en listener de materiales:', error);
-          setEstadisticas(estadisticasEjemplo);
-          setCategoriasMateriales(categoriasEjemplo);
           setLoading(false);
         }
       );
@@ -229,8 +221,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         },
         (error) => {
           console.error('Error en listener de cálculos:', error);
-          setEstadisticas(estadisticasEjemplo);
-          setCategoriasMateriales(categoriasEjemplo);
           setLoading(false);
         }
       );
@@ -332,26 +322,28 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           </View>
         </View>
         {/* Gráfica circular de tipos de filamento */}
-        <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
-          <Text style={[styles.sectionTitle, { textAlign: 'center', marginBottom: 8 }]}>{t.filamentTypes}</Text>
-          <PieChart
-            data={pieData}
-            width={Dimensions.get('window').width - 64}
-            height={180}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(0, 230, 118, ${opacity})`,
-              labelColor: () => '#fff',
-              backgroundColor: '#181818',
-              backgroundGradientFrom: '#181818',
-              backgroundGradientTo: '#181818',
-              decimalPlaces: 0,
-            }}
-            accessor={'population'}
-            backgroundColor={'transparent'}
-            paddingLeft={"0"}
-            absolute
-          />
-        </View>
+        {pieData.length > 0 && (
+          <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
+            <Text style={[styles.sectionTitle, { textAlign: 'center', marginBottom: 8 }]}>{t.filamentTypes}</Text>
+            <PieChart
+              data={pieData}
+              width={Dimensions.get('window').width - 64}
+              height={180}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(0, 230, 118, ${opacity})`,
+                labelColor: () => '#fff',
+                backgroundColor: '#181818',
+                backgroundGradientFrom: '#181818',
+                backgroundGradientTo: '#181818',
+                decimalPlaces: 0,
+              }}
+              accessor={'population'}
+              backgroundColor={'transparent'}
+              paddingLeft={"0"}
+              absolute
+            />
+          </View>
+        )}
         {/* Barra segmentada de tipos de filamento */}
         {pieData.length > 0 && (
           <View style={{ width: '100%' }}>
@@ -430,19 +422,21 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
       </View>
 
       {/* Categorías de materiales */}
-      <View style={styles.categoriesContainer}>
-        <Text style={styles.sectionTitle}>{t.materialCategories}</Text>
-        
-        {categoriasMateriales.map((categoria, index) => (
-          <View key={index} style={styles.categoryItem}>
-            <View style={styles.categoryInfo}>
-              <View style={[styles.categoryDot, { backgroundColor: categoria.color }]} />
-              <Text style={styles.categoryName}>{categoria.nombre}</Text>
+      {categoriasMateriales.length > 0 && (
+        <View style={styles.categoriesContainer}>
+          <Text style={styles.sectionTitle}>{t.materialCategories}</Text>
+          
+          {categoriasMateriales.map((categoria, index) => (
+            <View key={index} style={styles.categoryItem}>
+              <View style={styles.categoryInfo}>
+                <View style={[styles.categoryDot, { backgroundColor: categoria.color }]} />
+                <Text style={styles.categoryName}>{categoria.nombre}</Text>
+              </View>
+              <Text style={styles.categoryAmount}>{categoria.cantidad} {t.materials}</Text>
             </View>
-            <Text style={styles.categoryAmount}>{categoria.cantidad} {t.materials}</Text>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      )}
 
       {/* Métricas financieras */}
       <View style={styles.financialContainer}>
@@ -488,7 +482,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('add')}
           >
-            <Text style={styles.actionIcon}>➕</Text>
+            <Ionicons name="add-circle" size={24} color="#00e676" style={styles.actionIcon} />
             <Text style={styles.actionText}>{t.addMaterial}</Text>
           </TouchableOpacity>
           
@@ -496,7 +490,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('inventory')}
           >
-            <Text style={styles.actionIcon}>📦</Text>
+            <Ionicons name="archive" size={24} color="#00e676" style={styles.actionIcon} />
             <Text style={styles.actionText}>{t.inventory}</Text>
           </TouchableOpacity>
 
@@ -504,7 +498,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('calculator')}
           >
-            <Text style={styles.actionIcon}>🧮</Text>
+            <Ionicons name="calculator" size={24} color="#00e676" style={styles.actionIcon} />
             <Text style={styles.actionText}>{t.calculator}</Text>
           </TouchableOpacity>
 
@@ -512,7 +506,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('history')}
           >
-            <Text style={styles.actionIcon}>📝</Text>
+            <Ionicons name="time" size={24} color="#00e676" style={styles.actionIcon} />
             <Text style={styles.actionText}>{t.history}</Text>
           </TouchableOpacity>
         </View>
@@ -779,4 +773,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MenuScreen; 
+export default PerfilScreen; 
