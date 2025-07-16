@@ -44,9 +44,9 @@ export const getCantidadRestante = (material: Material): string => {
 
 // Validar si un material puede ser guardado
 export const validarMaterialCompleto = (material: Material): boolean => {
-  const { categoria, precio, cantidad, marca, imagen, svgSeleccionado } = material;
+  const { categoria, precio, cantidad, marca, imagen } = material;
   // Validar que haya imagen
-  if (!(imagen || svgSeleccionado)) {
+  if (!imagen) {
     return false;
   }
   if (!categoria || !precio || !cantidad || !marca) {

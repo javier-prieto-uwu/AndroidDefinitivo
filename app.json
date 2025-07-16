@@ -23,14 +23,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0d0d0d"
       },
-      "edgeToEdgeEnabled": true,
-      "statusBarStyle": "light",
-      "statusBarHidden": false,
-      "navigationBarColor": "#0d0d0d",
-      "statusBarColor": "#0d0d0d",
-      "navigationBarHidden": true,
-      "immersive": true,
-      "systemUiVisibility": "immersive"
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"

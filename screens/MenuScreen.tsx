@@ -23,12 +23,6 @@ const estadisticasEjemplo = {
   tiempoPromedioProyecto: '5.3',
   pedidosPendientes: 1
 };
-const categoriasEjemplo = [
-      { nombre: t.filaments, cantidad: 2, color: '#00e676' },
-    { nombre: t.resins, cantidad: 1, color: '#2196f3' },
-    { nombre: t.paints, cantidad: 0, color: '#ff9800' },
-    { nombre: t.keychainRings, cantidad: 0, color: '#9c27b0' }
-];
 
 const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolean) => void }) => {
   const navigation = useNavigation();
@@ -37,6 +31,13 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
   
   // Estado para estadísticas y categorías
   const [estadisticas, setEstadisticas] = useState(estadisticasEjemplo);
+  // Definir categoriasEjemplo aquí para que tenga acceso a 't'
+  const categoriasEjemplo = [
+    { nombre: t.filaments, cantidad: 2, color: '#00e676' },
+    { nombre: t.resins, cantidad: 1, color: '#2196f3' },
+    { nombre: t.paints, cantidad: 0, color: '#ff9800' },
+    { nombre: t.keychainRings, cantidad: 0, color: '#9c27b0' }
+  ];
   const [categoriasMateriales, setCategoriasMateriales] = useState(categoriasEjemplo);
   const [materiales, setMateriales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
