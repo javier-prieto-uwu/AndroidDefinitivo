@@ -433,25 +433,25 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{estadisticas.proyectosCompletados.toLocaleString('es-MX')}</Text>
             <Text style={styles.statLabel}>{t.completedProjects}</Text>
-                          <Ionicons name="checkmark-circle" size={20} color="#00e676" />
+            <Ionicons name="checkmark-circle" size={20} color="#00e676" style={styles.statIcon} />
           </View>
           
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{Number(estadisticas.tiempoImpresion).toLocaleString('es-MX', { maximumFractionDigits: 1 })}h</Text>
             <Text style={styles.statLabel}>{t.totalPrintingTime}</Text>
-            <Text style={styles.statIcon}>⏱️</Text>
+            <Ionicons name="time" size={20} color="#00e676" style={styles.statIcon} />
           </View>
           
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{Number(estadisticas.tiempoPromedioProyecto).toLocaleString('es-MX', { maximumFractionDigits: 1 })}h</Text>
             <Text style={styles.statLabel}>{t.averageProjectTime}</Text>
-            <Text style={styles.statIcon}>📊</Text>
+            <Ionicons name="analytics" size={20} color="#00e676" style={styles.statIcon} />
           </View>
           
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{estadisticas.materialesDisponibles.toLocaleString('es-MX')}</Text>
             <Text style={styles.statLabel}>{t.availableMaterials}</Text>
-                          <Ionicons name="cube-outline" size={20} color="#00e676" />
+            <Ionicons name="cube-outline" size={20} color="#00e676" style={styles.statIcon} />
           </View>
         </View>
         {/* Gráfica circular de tipos de filamento */}
@@ -621,7 +621,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           
           <View style={styles.bestCustomerCard}>
             <View style={styles.bestCustomerHeader}>
-              <Ionicons name="trophy" size={24} color="#ffd600" />
+              <Ionicons name="trophy" size={24} color="#ffd600" style={{ marginRight: 8 }} />
               <Text style={styles.bestCustomerName}>{mejorCliente.nombre}</Text>
             </View>
             
@@ -662,7 +662,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
                 </View>
                 
                 {index === 0 && (
-                  <Ionicons name="trophy" size={16} color="#ffd600" />
+                  <Ionicons name="trophy" size={16} color="#ffd600" style={{ marginLeft: 8 }} />
                 )}
               </View>
             ))}
@@ -860,7 +860,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    fontSize: 20,
   },
   materialsContainer: {
     marginBottom: 24,

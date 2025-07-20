@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal, Alert } from 'react-native'
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal, Alert, Dimensions } from 'react-native'
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { auth, app } from '../api/firebase'
 import { getFirestore, collection, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
@@ -9,11 +9,35 @@ import { filtrarMateriales } from '../utils';
 import { useLanguage } from '../utils/LanguageProvider';
 import translations from '../utils/locales';
 
+// Obtener dimensiones de la pantalla
+const { width: screenWidth } = Dimensions.get('window');
+const isLargeDevice = screenWidth > 768; // Tablets y pantallas grandes
+
 // Simulación de materiales locales
 
 const InventoryScreen: React.FC = () => {
   const { lang } = useLanguage();
   const t = translations[lang];
+  
+  // Estado para el tamaño de la pantalla
+  const [screenDimensions, setScreenDimensions] = useState({
+    width: screenWidth,
+    isLarge: isLargeDevice
+  });
+
+  // Listener para cambios de orientación
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      const newIsLarge = window.width > 768;
+      setScreenDimensions({
+        width: window.width,
+        isLarge: newIsLarge
+      });
+    });
+
+    return () => subscription?.remove();
+  }, []);
+
   // Usar el hook de materiales
   const { 
     materiales, 
@@ -136,8 +160,12 @@ const InventoryScreen: React.FC = () => {
     return texto.includes(busqueda.toLowerCase());
   });
 
-  // Agrupar materiales por categoría
-  const categoriasMateriales = Array.from(new Set(materialesFiltrados.map(m => m.categoria)))
+  // Filtrar materiales agotados y disponibles
+  const materialesAgotados = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') <= 0);
+  const materialesDisponibles = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') > 0);
+
+  // Agrupar materiales disponibles por categoría
+  const categoriasMateriales = Array.from(new Set(materialesDisponibles.map(m => m.categoria)))
 
   // Función para navegar a una categoría específica
   const navegarACategoria = (categoria: string) => {
@@ -264,10 +292,6 @@ const InventoryScreen: React.FC = () => {
     arosllaveros: require('../assets/arosllaveros.png'),
   };
 
-  // Filtrar materiales agotados y disponibles
-  const materialesAgotados = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') <= 0);
-  const materialesDisponibles = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') > 0);
-
   // Función para calcular el stock en unidades
   const getStockUnidades = (mat) => {
     const categoria = mat.categoria || t.filament;
@@ -369,9 +393,29 @@ const InventoryScreen: React.FC = () => {
                 style={styles.categoriaContainer}
               >
                 <Text style={styles.categoriaTitulo}>{cat}</Text>
-                <View style={styles.materialesGrid}>
-                  {materialesFiltrados.filter(m => m.categoria === cat).map((mat) => (
-                    <View key={mat.id} style={styles.materialCapsula}>
+                <View style={{
+                  flexDirection: isLargeDevice ? 'row' : 'column',
+                  flexWrap: isLargeDevice ? 'wrap' : 'nowrap',
+                  justifyContent: isLargeDevice ? 'space-between' : 'flex-start',
+                  width: '100%',
+                  paddingHorizontal: isLargeDevice ? 0 : 16,
+                }}>
+                  {materialesDisponibles.filter(m => m.categoria === cat).map((mat) => (
+                    <View key={mat.id} style={{
+                      backgroundColor: '#181818',
+                      borderRadius: 16,
+                      borderWidth: 2,
+                      borderColor: '#333',
+                      padding: 16,
+                      marginBottom: 8,
+                      width: isLargeDevice ? '48%' : '100%',
+                      alignItems: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    }}>
                       {/* Botones de acción */}
                       <View style={styles.actionButtons}>
                         <TouchableOpacity
@@ -483,6 +527,99 @@ const InventoryScreen: React.FC = () => {
             ))
           )}
         </View>
+
+        {/* Sección de Materiales Agotados */}
+        {materialesAgotados.length > 0 && (
+          <View style={[styles.materialsContainer, { marginTop: 32, marginBottom: 16 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <Ionicons name="warning" size={24} color="#e53935" style={{ marginRight: 8, marginTop: 2 }} />
+              <Text style={[styles.sectionTitle, { color: '#e53935', marginTop: 0 }]}>{t.outOfStock}</Text>
+            </View>
+            <View style={{
+              flexDirection: isLargeDevice ? 'row' : 'column',
+              flexWrap: isLargeDevice ? 'wrap' : 'nowrap',
+              justifyContent: isLargeDevice ? 'space-between' : 'flex-start',
+              width: '100%',
+              paddingHorizontal: isLargeDevice ? 0 : 16,
+            }}>
+              {materialesAgotados.map((mat) => (
+                <View key={mat.id} style={{
+                  backgroundColor: '#181818',
+                  borderRadius: 16,
+                  borderWidth: 2,
+                  borderColor: '#e53935',
+                  padding: 16,
+                  marginBottom: 8,
+                  width: isLargeDevice ? '48%' : '100%',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                  opacity: 0.7,
+                }}>
+                  {/* Botones de acción */}
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => { setMaterialAEliminar(mat); setShowDeleteAlert(true); }}
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#e53935" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => abrirModalEdicion(mat)}
+                    >
+                      <Ionicons name="create-outline" size={18} color="#00e676" />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {/* Imagen del material */}
+                  <Image
+                    source={
+                      mat.imagen && ICONOS_PNG[mat.imagen]
+                        ? ICONOS_PNG[mat.imagen]
+                        : require('../assets/filamento.png')
+                    }
+                    style={styles.materialImage}
+                    resizeMode="contain"
+                  />
+                  
+                  {/* Información del material */}
+                  <View style={styles.materialInfo}>
+                    <Text style={[styles.materialNombre, { color: '#e53935' }]} numberOfLines={2} ellipsizeMode="tail">
+                      {mat.nombre}
+                    </Text>
+                    <Text style={[styles.materialSubtipo, { color: '#e53935' }]} numberOfLines={1} ellipsizeMode="tail">
+                      {mat.subtipo || mat.tipo || 'Sin tipo'}
+                    </Text>
+                  </View>
+                  
+                  {/* Bolita de color */}
+                  <View style={[styles.colorCirculo, { backgroundColor: mat.color || '#e53935' }]} />
+                  
+                  {/* Detalles del material agotado */}
+                  <View style={styles.materialDetalles}>
+                    <View style={styles.detalleFila}>
+                      <Text style={styles.detalleLabel}>{t.price}</Text>
+                      <Text style={styles.detalleValor}>${mat.precio}</Text>
+                    </View>
+                    <View style={styles.detalleFila}>
+                      <Text style={styles.detalleLabel}>{t.remaining}</Text>
+                      <Text style={[styles.detalleValor, { color: '#e53935' }]}>0</Text>
+                    </View>
+                    <View style={styles.detalleFila}>
+                      <Text style={styles.detalleLabel}>{t.status}</Text>
+                      <Text style={[styles.detalleValor, { color: '#e53935' }]}>{t.outOfStock}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Espacio visual para la barra de tabs */}
         <View style={{ height: 70, backgroundColor: '#0d0d0d' }} />
         
@@ -773,20 +910,6 @@ const InventoryScreen: React.FC = () => {
           </Modal>
         )}
 
-        {materialesAgotados.length > 0 && (
-          <View style={{ marginTop: 32 }}>
-            <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>{t.outOfStock}</Text>
-            {materialesAgotados.map((mat) => (
-              <View key={mat.id} style={[styles.materialCapsula, { opacity: 0.5 }]}> 
-                <View style={[styles.colorCirculo, { backgroundColor: mat.color || '#00e676' }]} />
-                <View style={styles.materialDetalles}>
-                  <Text style={[styles.detalleLabel, { color: '#e53935' }]}>{mat.nombre}</Text>
-                  <Text style={styles.detalleValor}>{t.stock}: 0 {t.units}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
       </ScrollView>
   )
 }
@@ -898,26 +1021,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     textAlign: 'left',
-  },
-  materialesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  materialCapsula: {
-    backgroundColor: '#181818',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#333',
-    padding: 16,
-    marginBottom: 8,
-    width: '48%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   actionButtons: {
     position: 'absolute',
