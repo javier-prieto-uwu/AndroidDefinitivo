@@ -6,6 +6,7 @@ import { getDocs, collection, getFirestore, query, orderBy, limit } from 'fireba
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../utils/LanguageProvider';
 import translations from '../utils/locales';
+import { limpiarPrecio } from '../utils/materialUtils';
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -56,7 +57,11 @@ const HomeScreen: React.FC = () => {
           setMateriales(mats);
           setEstadisticas({
             totalMateriales: mats.length,
-            valorTotal: mats.reduce((sum, mat: any) => sum + (parseFloat(mat.precio || 0) * parseFloat(mat.cantidad || 0)), 0),
+            valorTotal: mats.reduce((sum, mat: any) => {
+              const precio = parseFloat(limpiarPrecio(mat.precio || '0')) || 0;
+              const cantidad = parseFloat(mat.cantidad || 0) || 0;
+              return sum + (precio * cantidad);
+            }, 0),
             stockTotal: mats.reduce((sum, mat: any) => sum + (parseFloat(mat.cantidad) || 0), 0),
             ultimaCotizacion
           });
@@ -101,7 +106,7 @@ const HomeScreen: React.FC = () => {
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{estadisticas.totalMateriales}</Text>
           <Text style={styles.statLabel}>{t.materials}</Text>
-          <Text style={styles.statIcon}>📦</Text>
+          <Ionicons name="cube-outline" size={24} color="#00e676" style={styles.statIcon} />
         </View>
         
         <View style={styles.statCard}>
@@ -114,13 +119,13 @@ const HomeScreen: React.FC = () => {
             {estadisticas.valorTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
           </Text>
           <Text style={styles.statLabel}>{t.totalValue}</Text>
-          <Text style={styles.statIcon}>💰</Text>
+          <Ionicons name="cash-outline" size={24} color="#00e676" style={styles.statIcon} />
         </View>
         
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{estadisticas.stockTotal}</Text>
           <Text style={styles.statLabel}>{t.totalStock}</Text>
-          <Text style={styles.statIcon}>📊</Text>
+          <Ionicons name="stats-chart-outline" size={24} color="#00e676" style={styles.statIcon} />
         </View>
       </View>
 
@@ -180,7 +185,7 @@ const HomeScreen: React.FC = () => {
                   <View style={styles.infoContainer}>
                     <View style={styles.materialInfo}>
                       <Text style={styles.materialName}>{material.nombre || 'Sin nombre'}</Text>
-                      <Text style={styles.materialPrice}>${material.precio || '0.00'}</Text>
+                      <Text style={styles.materialPrice}>${limpiarPrecio(material.precio || '0')}</Text>
                     </View>
                     <View style={styles.materialDetails}>
                       <View style={styles.stockContainer}>
@@ -217,7 +222,7 @@ const styles = StyleSheet.create({
   },
   username: {
     color: 'white',
-    fontSize: 28,
+    fontSize: 18, // antes 28
     fontWeight: 'bold',
     marginTop: 4,
   },

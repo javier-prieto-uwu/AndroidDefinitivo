@@ -28,18 +28,27 @@ const MaterialList: React.FC<MaterialListProps> = ({
   onMaterialSelect,
   maxItems 
 }) => {
-  // Agrupar materiales por tipo
-  const agruparMaterialesPorTipo = () => {
-    const matsPorTipo: { [tipo: string]: Material[] } = {};
+  // Agrupar materiales por categoría y luego por tipo
+  const agruparMaterialesPorCategoriaYTipo = () => {
+    const matsPorCategoria: { [categoria: string]: { [tipo: string]: Material[] } } = {};
+    
     materiales.forEach(mat => {
+      const categoria = mat.categoria || 'Sin categoría';
       const tipo = mat.tipo || 'Sin tipo';
-      if (!matsPorTipo[tipo]) matsPorTipo[tipo] = [];
-      matsPorTipo[tipo].push(mat);
+      
+      if (!matsPorCategoria[categoria]) {
+        matsPorCategoria[categoria] = {};
+      }
+      if (!matsPorCategoria[categoria][tipo]) {
+        matsPorCategoria[categoria][tipo] = [];
+      }
+      matsPorCategoria[categoria][tipo].push(mat);
     });
-    return matsPorTipo;
+    
+    return matsPorCategoria;
   };
 
-  // Renderizar grupo de materiales
+  // Renderizar grupo de materiales por tipo
   const renderMaterialGroup = (tipo: string, materiales: Material[]) => {
     const filas = [];
     for (let i = 0; i < materiales.length; i += 2) {
@@ -47,8 +56,8 @@ const MaterialList: React.FC<MaterialListProps> = ({
     }
 
     return (
-      <View key={tipo} style={styles.groupContainer}>
-        <Text style={styles.groupTitle}>{tipo}</Text>
+      <View key={tipo} style={styles.subGroupContainer}>
+        <Text style={styles.subGroupTitle}>{tipo}</Text>
         {filas.map((fila, idx) => (
           <View key={idx} style={styles.row}>
             {fila.map((mat) => (
@@ -66,15 +75,27 @@ const MaterialList: React.FC<MaterialListProps> = ({
     );
   };
 
-  const materialesAgrupados = agruparMaterialesPorTipo();
-  const materialesAMostrar = maxItems 
+  // Renderizar categoría completa
+  const renderCategoria = (categoria: string, tipos: { [tipo: string]: Material[] }) => {
+    return (
+      <View key={categoria} style={styles.categoryContainer}>
+        <Text style={styles.categoryTitle}>{categoria}</Text>
+        {Object.entries(tipos).map(([tipo, materiales]) => 
+          renderMaterialGroup(tipo, materiales)
+        )}
+      </View>
+    );
+  };
+
+  const materialesAgrupados = agruparMaterialesPorCategoriaYTipo();
+  const categoriasAMostrar = maxItems 
     ? Object.entries(materialesAgrupados).slice(0, maxItems)
     : Object.entries(materialesAgrupados);
 
   return (
     <View style={styles.container}>
-      {materialesAMostrar.map(([tipo, materiales]) => 
-        renderMaterialGroup(tipo, materiales)
+      {categoriasAMostrar.map(([categoria, tipos]) => 
+        renderCategoria(categoria, tipos)
       )}
     </View>
   );
@@ -84,13 +105,24 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
   },
-  groupContainer: {
-    marginBottom: 8,
+  categoryContainer: {
+    marginBottom: 16,
   },
-  groupTitle: {
+  categoryTitle: {
     color: '#00e676',
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 18,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  subGroupContainer: {
+    marginBottom: 8,
+    marginLeft: 8,
+  },
+  subGroupTitle: {
+    color: '#a0a0a0',
+    fontWeight: 'bold',
+    fontSize: 14,
     marginBottom: 4,
   },
   row: {

@@ -173,7 +173,7 @@ const InventoryScreen: React.FC = () => {
           {cargando ? (
             <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 20 }}>{t.loadingMaterials}</Text>
           ) : error ? (
-            <Text style={{ color: 'red', textAlign: 'center', marginVertical: 20 }}>{error}</Text>
+            <Text style={{ color: '#ff9800', textAlign: 'center', marginVertical: 20 }}>{error}</Text>
           ) : materialesFiltrados.length === 0 ? (
             <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 20 }}>{t.noMaterialsRegistered}</Text>
           ) : (

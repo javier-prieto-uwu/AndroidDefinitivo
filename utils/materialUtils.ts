@@ -19,20 +19,31 @@ export interface Material {
   marca?: string;
   imagen?: string;
   fechaRegistro?: string;
+  svgSeleccionado?: string; // Nuevo campo para la imagen SVG
 }
+
+// Función para limpiar precio removiendo símbolos $ y caracteres no numéricos
+export const limpiarPrecio = (precio: string): string => {
+  if (!precio) return '0';
+  return precio.replace(/[^\d.]/g, '');
+};
 
 // Obtener precio de visualización según categoría
 export const getPrecioDisplay = (material: Material): string => {
   const categoria = material.categoria || 'Filamento';
+  let precio: string;
   switch (categoria) {
     case 'Pintura':
     case 'Aros de llavero':
-      return material.precio || '0';
+      precio = material.precio || '0';
+      break;
     case 'Filamento':
     case 'Resina':
     default:
-      return material.precioBobina || material.precio || '0';
+      precio = material.precioBobina || material.precio || '0';
+      break;
   }
+  return limpiarPrecio(precio);
 };
 
 // Obtener cantidad restante
@@ -43,29 +54,36 @@ export const getCantidadRestante = (material: Material): string => {
 };
 
 // Validar si un material puede ser guardado
-export const validarMaterialCompleto = (material: Material): boolean => {
-  const { categoria, precio, cantidad, marca, imagen } = material;
-  // Validar que haya imagen
-  if (!imagen) {
+export const validarMaterialCompleto = (material: Material, t?: any): boolean => {
+  const { categoria, precio, cantidad, marca, imagen, svgSeleccionado } = material;
+  // Validar que haya imagen (acepta imagen o svgSeleccionado)
+  if (!imagen && !svgSeleccionado) {
     return false;
   }
   if (!categoria || !precio || !cantidad || !marca) {
     return false;
   }
 
-  switch (categoria) {
-    case 'Filamento':
-      return !!(material.tipo && material.subtipo && material.color && material.peso);
-    case 'Resina':
-      return !!(material.tipo && material.color && material.peso);
-    case 'Pintura':
-      return !!(material.tipoPintura && material.colorPintura && material.cantidadPintura);
-    case 'Aros de llavero':
-      return !!material.color;
-    default:
-      // Para categorías personalizadas
-      return true;
+  // Permitir validación con strings fijos o traducciones
+  const FILAMENTO = t ? [t.filament, 'Filamento'] : ['Filamento'];
+  const RESINA = t ? [t.resin, 'Resina'] : ['Resina'];
+  const PINTURA = t ? [t.paint, 'Pintura'] : ['Pintura'];
+  const AROS = t ? [t.keychainRings, 'Aros de llavero'] : ['Aros de llavero'];
+
+  if (FILAMENTO.includes(categoria)) {
+    return !!(material.tipo && material.subtipo && material.color && material.peso);
   }
+  if (RESINA.includes(categoria)) {
+    return !!(material.tipo && material.color && material.peso);
+  }
+  if (PINTURA.includes(categoria)) {
+    return !!(material.tipoPintura && material.colorPintura && material.cantidadPintura);
+  }
+  if (AROS.includes(categoria)) {
+    return !!material.color;
+  }
+  // Para categorías personalizadas
+  return true;
 };
 
 // Generar nombre automático del material

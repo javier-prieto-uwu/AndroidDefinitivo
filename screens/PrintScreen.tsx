@@ -344,9 +344,15 @@ const PrintScreen: React.FC = () => {
                           {calculo.nombre}
                         </Text>
                         {calculo.fallo ? (
-              <Text style={styles.falloText}>❌ {t.failure}</Text>
+              <Text style={styles.falloText}>
+                <Ionicons name="close-circle" size={16} color="#d32f2f" />
+                {' '}{t.failure}
+              </Text>
                         ) : (
-              <Text style={styles.exitoText}>✅ {t.success}</Text>
+              <Text style={styles.exitoText}>
+                <Ionicons name="checkmark-circle" size={16} color="#00e676" />
+                {' '}{t.success}
+              </Text>
                         )}
                       </View>
                     <TouchableOpacity
@@ -367,7 +373,8 @@ const PrintScreen: React.FC = () => {
             }))}
           >
             <Text style={styles.materialesToggleText}>
-              📦 {t.usedMaterials}
+              <Ionicons name="cube-outline" size={16} color="#00e676" />
+              {' '}{t.usedMaterials}
             </Text>
             <Ionicons 
               name={materialesExpandido ? "chevron-up" : "chevron-down"} 
@@ -716,10 +723,18 @@ const PrintScreen: React.FC = () => {
       </View>
       {/* Tabs/selector arriba de la lista */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', marginVertical: 10 }}>
-        <TouchableOpacity onPress={() => setTab('carpetas')} style={{ backgroundColor: tab === 'carpetas' ? '#00e676' : '#222', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 24, marginRight: 8 }}>
+        <TouchableOpacity onPress={() => {
+          setTab('carpetas');
+          setProyectoSeleccionado(null);
+          setImpresiones([]);
+        }} style={{ backgroundColor: tab === 'carpetas' ? '#00e676' : '#222', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 24, marginRight: 8 }}>
           <Text style={{ color: tab === 'carpetas' ? '#222' : '#fff', fontWeight: 'bold' }}>{t.foldersOrProjects}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setTab('sueltos')} style={{ backgroundColor: tab === 'sueltos' ? '#00e676' : '#222', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 24 }}>
+        <TouchableOpacity onPress={() => {
+          setTab('sueltos');
+          setProyectoSeleccionado(null);
+          setImpresiones([]);
+        }} style={{ backgroundColor: tab === 'sueltos' ? '#00e676' : '#222', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 24 }}>
           <Text style={{ color: tab === 'sueltos' ? '#222' : '#fff', fontWeight: 'bold' }}>{t.soloProjects}</Text>
         </TouchableOpacity>
       </View>
@@ -727,7 +742,7 @@ const PrintScreen: React.FC = () => {
       {loading ? (
         <ActivityIndicator size="large" color="#00e676" style={{ marginTop: 40 }} />
       ) : error ? (
-        <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>{error}</Text>
+        <Text style={{ color: '#ff9800', textAlign: 'center', marginTop: 40 }}>{error}</Text>
       ) : proyectoSeleccionado ? (
         <View style={styles.calculationsContainer}>
           <TouchableOpacity onPress={() => { setProyectoSeleccionado(null); setImpresiones([]); }} style={{marginBottom: 16}}>

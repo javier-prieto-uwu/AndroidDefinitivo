@@ -69,6 +69,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Selector de idioma */}
+        <View style={{ alignItems: 'flex-end', marginBottom: 10 }}>
+          <TouchableOpacity
+            style={{ backgroundColor: '#181818', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 16, borderWidth: 1, borderColor: '#00e676' }}
+            onPress={() => setLang(lang === 'es' ? 'en' : 'es')}
+          >
+            <Text style={{ color: '#00e676', fontWeight: 'bold' }}>{lang === 'es' ? 'ENGLISH' : 'ESPAÑOL'}</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -125,12 +134,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
             </View>
           </View>
 
-          <TouchableOpacity 
+          {/* Eliminar la opción de olvidaste tu contraseña */}
+          {/* <TouchableOpacity 
             style={styles.forgotPassword}
             onPress={handleForgotPassword}
           >
             <Text style={styles.forgotPasswordText}>{t.forgotPassword}</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity 
             style={[styles.loginButton, loading ? styles.loginButtonDisabled : null]}
@@ -160,16 +170,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0d0d0d',
-    marginTop: 30,
+    paddingTop: 0,
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 0,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
+    marginTop: 32,
   },
   backButton: {
     position: 'absolute',
@@ -183,29 +195,33 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 2,
     borderColor: '#222',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
     color: 'white',
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     color: '#a0a0a0',
     fontSize: 16,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   form: {
-    marginBottom: 30,
+    marginBottom: 24,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     color: 'white',
     fontSize: 16,
     marginBottom: 8,
     fontWeight: '500',
+    textAlign: 'left',
   },
   input: {
     backgroundColor: '#181818',
@@ -232,20 +248,18 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 16,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    color: '#00e676',
-    fontSize: 14,
-  },
   loginButton: {
     backgroundColor: '#00e676',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    marginTop: 8,
+    elevation: 2,
+    shadowColor: '#00e676',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   loginButtonDisabled: {
     opacity: 0.6,
@@ -254,20 +268,24 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 8,
   },
   footerText: {
     color: '#a0a0a0',
     fontSize: 14,
+    marginRight: 4,
   },
   footerLink: {
     color: '#00e676',
     fontSize: 14,
     fontWeight: 'bold',
+    textDecorationLine: 'underline',
   },
 });
 

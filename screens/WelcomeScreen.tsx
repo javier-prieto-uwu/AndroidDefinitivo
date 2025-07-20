@@ -1,13 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 
 export default function WelcomeScreen({ goToLogin }) {
   return (
     <View style={styles.container}>
-      <Text style={styles.appName}>3D Material</Text>
-      <Text style={styles.subtitle}>dskljdfkljdfsklj</Text>
+      <Image source={require('../assets/logo3dmaterial.png')} style={styles.logo} />
+      <Text style={styles.subtitle}>El mejor sistema gestor de materiales de impresión 3D</Text>
       <TouchableOpacity style={styles.startButton} onPress={goToLogin}>
-        <Text style={styles.startButtonText}>comenzar</Text>
+        <Text style={styles.startButtonText}>Comenzar</Text>
       </TouchableOpacity>
     </View>
   );
@@ -19,7 +19,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d0d0d',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 50,
+    marginBottom:100
+    // marginTop: 50, // Eliminado para subir el contenido
+  },
+  logo: {
+    width: 360,
+    height: 360, // Reducido para acercar el subtítulo
+    resizeMode: 'contain',
   },
   appName: {
     fontSize: 36,
@@ -29,8 +35,12 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: '#a0a0a0',
-    fontSize: 20,
+    fontSize: 22,
     marginBottom: 32,
+    textAlign: 'center',
+    fontWeight: '500',
+    margin: 20,
+    marginTop: -70, // Eliminado para evitar solapamiento y subir el contenido
   },
   startButton: {
     backgroundColor: '#00e676',

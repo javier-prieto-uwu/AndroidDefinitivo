@@ -311,7 +311,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{estadisticas.proyectosCompletados.toLocaleString('es-MX')}</Text>
             <Text style={styles.statLabel}>{t.completedProjects}</Text>
-            <Text style={styles.statIcon}>✅</Text>
+                          <Ionicons name="checkmark-circle" size={20} color="#00e676" />
           </View>
           
           <View style={styles.statCard}>
@@ -329,7 +329,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{estadisticas.materialesDisponibles.toLocaleString('es-MX')}</Text>
             <Text style={styles.statLabel}>{t.availableMaterials}</Text>
-            <Text style={styles.statIcon}>📦</Text>
+                          <Ionicons name="cube-outline" size={20} color="#00e676" />
           </View>
         </View>
         {/* Gráfica circular de tipos de filamento */}
@@ -497,7 +497,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('inventory')}
           >
-            <Text style={styles.actionIcon}>📦</Text>
+                          <Ionicons name="cube-outline" size={24} color="#00e676" />
             <Text style={styles.actionText}>{t.inventory}</Text>
           </TouchableOpacity>
 
@@ -513,7 +513,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('history')}
           >
-            <Text style={styles.actionIcon}>📝</Text>
+                          <Ionicons name="calculator-outline" size={24} color="#00e676" />
             <Text style={styles.actionText}>{t.history}</Text>
           </TouchableOpacity>
         </View>

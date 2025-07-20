@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
+import { limpiarPrecio } from '../../utils/materialUtils';
 
 interface MaterialCardProps {
   material: {
@@ -20,15 +21,19 @@ interface MaterialCardProps {
 const MaterialCard: React.FC<MaterialCardProps> = ({ material, isSelected, onPress }) => {
   const getPrecioDisplay = () => {
     const categoria = material.categoria || 'Filamento';
+    let precio: string;
     switch (categoria) {
       case 'Pintura':
       case 'Aros de llavero':
-        return material.precio || '0';
+        precio = material.precio || '0';
+        break;
       case 'Filamento':
       case 'Resina':
       default:
-        return material.precioBobina || material.precio || '0';
+        precio = material.precioBobina || material.precio || '0';
+        break;
     }
+    return limpiarPrecio(precio);
   };
 
   const getCantidadRestante = () => {
@@ -74,14 +79,23 @@ const MaterialCard: React.FC<MaterialCardProps> = ({ material, isSelected, onPre
         ]} numberOfLines={1} ellipsizeMode="tail">
           {material.nombre}
         </Text>
-        <Text style={styles.subtipo} numberOfLines={1} ellipsizeMode="tail">
+        <Text style={[
+          styles.subtipo,
+          isSelected ? styles.textSelected : null
+        ]} numberOfLines={1} ellipsizeMode="tail">
           {material.subtipo}
         </Text>
         <View style={styles.infoRow}>
-          <Text style={styles.cantidadRestante}>
+          <Text style={[
+            styles.cantidadRestante,
+            isSelected ? styles.textSelected : null
+          ]}>
             Restante: {getCantidadRestante()}
           </Text>
-          <Text style={styles.precio}>
+          <Text style={[
+            styles.precio,
+            isSelected ? styles.textSelected : null
+          ]}>
             ${getPrecioDisplay()}
           </Text>
         </View>
@@ -146,6 +160,9 @@ const styles = StyleSheet.create({
   precio: {
     color: '#ffd600',
     fontSize: 9,
+  },
+  textSelected: {
+    color: '#333',
   },
 });
 

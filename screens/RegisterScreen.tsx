@@ -103,7 +103,7 @@ export default function RegisterScreen({ goToLogin }) {
 
     try {
       await registerWithEmail(email, password);
-      Alert.alert('✅ ' + t.success, t.success, [
+      Alert.alert(t.success, t.success, [
         {
           text: 'OK',
           onPress: goToLogin
@@ -126,7 +126,7 @@ export default function RegisterScreen({ goToLogin }) {
           ? 'Error de conexión. Verifica tu internet e intenta de nuevo.'
           : 'Network error. Check your internet and try again.';
       }
-      Alert.alert('❌ ' + t.error, msg);
+      Alert.alert(t.error, msg);
     }
   };
 

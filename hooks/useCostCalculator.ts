@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { limpiarPrecio } from '../utils/materialUtils';
 
 // Tipos base (pueden ser importados o definidos aquí)
 interface Material {
@@ -77,7 +78,7 @@ export function useCostCalculator({ materialesGuardados, proyectos }: UseCostCal
           case 'Filamento':
           case 'Resina':
             if (material.precioBobina && material.pesoBobina && material.gramosUtilizados) {
-              const costoPorGramo = parseFloat(material.precioBobina) / parseFloat(material.pesoBobina);
+              const costoPorGramo = parseFloat(limpiarPrecio(material.precioBobina)) / parseFloat(material.pesoBobina);
               costo = costoPorGramo * parseFloat(material.gramosUtilizados);
             }
             break;
@@ -85,18 +86,18 @@ export function useCostCalculator({ materialesGuardados, proyectos }: UseCostCal
             if (material.precio && material.cantidad && material.cantidadPintura) {
               const cantidadTotalPintura = parseFloat(material.cantidad);
               const mlUtilizados = parseFloat(material.cantidadPintura);
-              const costoPorMl = parseFloat(material.precio) / cantidadTotalPintura;
+              const costoPorMl = parseFloat(limpiarPrecio(material.precio)) / cantidadTotalPintura;
               costo = costoPorMl * mlUtilizados;
             }
             break;
           case 'Aros de llavero':
             if (material.precio && material.cantidadLlaveros) {
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadLlaveros);
+              costo = parseFloat(limpiarPrecio(material.precio)) * parseFloat(material.cantidadLlaveros);
             }
             break;
           default:
             if (material.precio && material.cantidadUtilizada) {
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadUtilizada);
+              costo = parseFloat(limpiarPrecio(material.precio)) * parseFloat(material.cantidadUtilizada);
             }
         }
         return total + costo;
@@ -125,7 +126,7 @@ export function useCostCalculator({ materialesGuardados, proyectos }: UseCostCal
             break;
           }
           case 'Pintura': {
-            const precioPintura = parseFloat(mat.precio || '0');
+            const precioPintura = parseFloat(limpiarPrecio(mat.precio || '0'));
             const cantidadTotalPintura = parseFloat(mat.cantidad || '0');
             const mlUtilizados = parseFloat(calculo.filamento.gramosUtilizados || '0');
             if (precioPintura && cantidadTotalPintura && mlUtilizados) {
@@ -135,7 +136,7 @@ export function useCostCalculator({ materialesGuardados, proyectos }: UseCostCal
             break;
           }
           case 'Aros de llavero': {
-            const precioLlavero = parseFloat(mat.precio || '0');
+            const precioLlavero = parseFloat(limpiarPrecio(mat.precio || '0'));
             const cantidadLlaveros = parseFloat(calculo.filamento.gramosUtilizados || '0');
             if (precioLlavero && cantidadLlaveros) {
               costo = precioLlavero * cantidadLlaveros;
@@ -143,7 +144,7 @@ export function useCostCalculator({ materialesGuardados, proyectos }: UseCostCal
             break;
           }
           default: {
-            const precio = parseFloat(mat.precio || '0');
+            const precio = parseFloat(limpiarPrecio(mat.precio || '0'));
             const cantidad = parseFloat(calculo.filamento.gramosUtilizados || '0');
             if (precio && cantidad) {
               costo = precio * cantidad;
@@ -207,7 +208,7 @@ export function useCostCalculator({ materialesGuardados, proyectos }: UseCostCal
           case 'Filamento':
           case 'Resina':
             if (material.precioBobina && material.pesoBobina && material.gramosUtilizados) {
-              const costoPorGramo = parseFloat(material.precioBobina) / parseFloat(material.pesoBobina);
+              const costoPorGramo = parseFloat(limpiarPrecio(material.precioBobina)) / parseFloat(material.pesoBobina);
               costo = costoPorGramo * parseFloat(material.gramosUtilizados);
             }
             break;
@@ -215,18 +216,18 @@ export function useCostCalculator({ materialesGuardados, proyectos }: UseCostCal
             if (material.precio && material.cantidad && material.cantidadPintura) {
               const cantidadTotalPintura = parseFloat(material.cantidad);
               const mlUtilizados = parseFloat(material.cantidadPintura);
-              const costoPorMl = parseFloat(material.precio) / cantidadTotalPintura;
+              const costoPorMl = parseFloat(limpiarPrecio(material.precio)) / cantidadTotalPintura;
               costo = costoPorMl * mlUtilizados;
             }
             break;
           case 'Aros de llavero':
             if (material.precio && material.cantidadLlaveros) {
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadLlaveros);
+              costo = parseFloat(limpiarPrecio(material.precio)) * parseFloat(material.cantidadLlaveros);
             }
             break;
           default:
             if (material.precio && material.cantidadUtilizada) {
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadUtilizada);
+              costo = parseFloat(limpiarPrecio(material.precio)) * parseFloat(material.cantidadUtilizada);
             }
         }
         return total + costo;
@@ -291,7 +292,7 @@ export function useCostCalculator({ materialesGuardados, proyectos }: UseCostCal
           case 'Filamento':
           case 'Resina':
             if (material.precioBobina && material.pesoBobina && material.gramosUtilizados) {
-              const costoPorGramo = parseFloat(material.precioBobina) / parseFloat(material.pesoBobina);
+              const costoPorGramo = parseFloat(limpiarPrecio(material.precioBobina)) / parseFloat(material.pesoBobina);
               costo = costoPorGramo * parseFloat(material.gramosUtilizados);
             }
             break;
@@ -299,18 +300,18 @@ export function useCostCalculator({ materialesGuardados, proyectos }: UseCostCal
             if (material.precio && material.cantidad && material.cantidadPintura) {
               const cantidadTotalPintura = parseFloat(material.cantidad);
               const mlUtilizados = parseFloat(material.cantidadPintura);
-              const costoPorMl = parseFloat(material.precio) / cantidadTotalPintura;
+              const costoPorMl = parseFloat(limpiarPrecio(material.precio)) / cantidadTotalPintura;
               costo = costoPorMl * mlUtilizados;
             }
             break;
           case 'Aros de llavero':
             if (material.precio && material.cantidadLlaveros) {
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadLlaveros);
+              costo = parseFloat(limpiarPrecio(material.precio)) * parseFloat(material.cantidadLlaveros);
             }
             break;
           default:
             if (material.precio && material.cantidadUtilizada) {
-              costo = parseFloat(material.precio) * parseFloat(material.cantidadUtilizada);
+              costo = parseFloat(limpiarPrecio(material.precio)) * parseFloat(material.cantidadUtilizada);
             }
         }
         return total + costo;
