@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal } from 'react-native'
-import React, { useState, useRef, useCallback } from 'react'
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, Modal, Alert } from 'react-native'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { auth, app } from '../api/firebase'
-import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMateriales } from '../hooks';
@@ -29,10 +29,106 @@ const InventoryScreen: React.FC = () => {
   const isFocused = useIsFocused();
   const [materialAEliminar, setMaterialAEliminar] = useState<any>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  
+  // Estados para edición de materiales
+  const [materialAEditar, setMaterialAEditar] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    nombre: '',
+    precio: '',
+    cantidad: '',
+    cantidadRestante: '',
+    color: '',
+    tipo: '',
+    subtipo: '',
+    categoria: '',
+    marca: '',
+    peso: '',
+    imagen: ''
+  });
+
+  // TIPOS Y SUBTIPOS INTERNOS EN ESPAÑOL (igual que AddMaterialScreen)
+  const TIPOS_FILAMENTO = [
+    { tipo: 'PLA', subtipos: ['Normal', 'Seda', 'Plus', 'Madera', 'Brillante', 'Mate', 'Flexible', 'Glow', 'Transparente', 'Multicolor', 'Reciclado', 'Carbono', 'Alta temperatura'] },
+    { tipo: 'ABS', subtipos: ['Normal', 'Plus', 'Reciclado', 'Transparente', 'Ignífugo', 'Carbono'] },
+    { tipo: 'PETG', subtipos: ['Normal', 'Transparente', 'Reciclado', 'Carbono'] },
+    { tipo: 'TPU', subtipos: ['85A', '95A', 'Flexible', 'Transparente'] },
+    { tipo: 'Nylon', subtipos: ['Normal', 'Carbono', 'Vidrio'] },
+    { tipo: 'PC', subtipos: ['Normal', 'Carbono'] },
+    { tipo: 'HIPS', subtipos: ['Normal'] },
+    { tipo: 'ASA', subtipos: ['Normal'] },
+    { tipo: 'PVA', subtipos: ['Normal'] },
+    { tipo: 'PP', subtipos: ['Normal'] },
+    { tipo: 'Wood', subtipos: ['Normal'] },
+    { tipo: 'Metal', subtipos: ['Normal'] },
+  ];
+  const TIPOS_RESINA = [
+    'Estándar',
+    'Tough (tipo ABS)',
+    'Flexible',
+    'Alta temperatura',
+    'Dental / Biocompatible',
+    'Transparente',
+    'Rápida',
+    'Especiales',
+  ];
+  const TIPOS_PINTURA = ['Acrílica', 'Esmalte', 'Spray', 'Óleo', 'Vinílica', 'Acuarela'];
+  const COLORES = [
+    { nombre: 'Negro', valor: '#222' },
+    { nombre: 'Blanco', valor: '#fff' },
+    { nombre: 'Rojo', valor: '#e53935' },
+    { nombre: 'Rojo Oscuro', valor: '#c62828' },
+    { nombre: 'Rosa', valor: '#e91e63' },
+    { nombre: 'Rosa Claro', valor: '#f8bbd9' },
+    { nombre: 'Naranja', valor: '#fb8c00' },
+    { nombre: 'Naranja Claro', valor: '#ffcc80' },
+    { nombre: 'Amarillo', valor: '#fbc02d' },
+    { nombre: 'Amarillo Claro', valor: '#fff59d' },
+    { nombre: 'Verde', valor: '#43a047' },
+    { nombre: 'Verde Claro', valor: '#81c784' },
+    { nombre: 'Verde Azulado', valor: '#26a69a' },
+    { nombre: 'Azul', valor: '#1e88e5' },
+    { nombre: 'Azul Claro', valor: '#64b5f6' },
+    { nombre: 'Azul Oscuro', valor: '#1565c0' },
+    { nombre: 'Índigo', valor: '#3f51b5' },
+    { nombre: 'Morado', valor: '#8e24aa' },
+    { nombre: 'Morado Claro', valor: '#ba68c8' },
+    { nombre: 'Violeta', valor: '#9c27b0' },
+    { nombre: 'Gris', valor: '#757575' },
+    { nombre: 'Gris Claro', valor: '#bdbdbd' },
+    { nombre: 'Gris Oscuro', valor: '#424242' },
+    { nombre: 'Marrón', valor: '#8d6e63' },
+    { nombre: 'Marrón Claro', valor: '#a1887f' },
+    { nombre: 'Beige', valor: '#d7ccc8' },
+    { nombre: 'Transparente', valor: '#e0e0e0' },
+    { nombre: 'Oro', valor: '#ffd700' },
+    { nombre: 'Plata', valor: '#b0b0b0' },
+    { nombre: 'Cobre', valor: '#b87333' },
+    { nombre: 'Bronce', valor: '#cd7f32' },
+    { nombre: 'Turquesa', valor: '#00bcd4' },
+    { nombre: 'Coral', valor: '#ff7043' },
+    { nombre: 'Lavanda', valor: '#e1bee7' },
+    { nombre: 'Menta', valor: '#b2dfdb' },
+    { nombre: 'Melocotón', valor: '#ffccbc' },
+    { nombre: 'Lima', valor: '#cddc39' },
+    { nombre: 'Cian', valor: '#00bcd4' },
+    { nombre: 'Magenta', valor: '#e91e63' },
+  ];
+
+  // Categorías base
+  const CATEGORIAS_BASE = [
+    'Filamento',
+    'Resina',
+    'Pintura',
+    'Aros de llavero',
+  ];
+
+  // Obtener subtipos según el tipo seleccionado (para filamento)
+  const subtiposDisponibles = editForm.categoria === 'Filamento'
+    ? TIPOS_FILAMENTO.find(tipo => tipo.tipo === editForm.tipo)?.subtipos || []
+    : [];
 
   const db = getFirestore(app);
-
-  // El hook useMateriales ya maneja la carga automática de materiales
 
   // Filtro de materiales por búsqueda
   const materialesFiltrados = materiales.filter(mat => {
@@ -41,12 +137,12 @@ const InventoryScreen: React.FC = () => {
   });
 
   // Agrupar materiales por categoría
-  const categorias = Array.from(new Set(materialesFiltrados.map(m => m.categoria)))
+  const categoriasMateriales = Array.from(new Set(materialesFiltrados.map(m => m.categoria)))
 
   // Función para navegar a una categoría específica
   const navegarACategoria = (categoria: string) => {
     setCategoriaSeleccionada(categoria)
-    const categoriaIndex = categorias.indexOf(categoria)
+    const categoriaIndex = categoriasMateriales.indexOf(categoria)
     if (categoriaIndex !== -1) {
       const baseOffset = 300
       const categoriaOffset = categoriaIndex * 400
@@ -62,7 +158,97 @@ const InventoryScreen: React.FC = () => {
       setMaterialAEliminar(null);
       setShowDeleteAlert(false);
     } catch (e) {
+      console.error('Error eliminando material:', e);
+      Alert.alert('Error', 'No se pudo eliminar el material. Inténtalo de nuevo.');
       setShowDeleteAlert(false);
+    }
+  };
+
+  // Función para abrir modal de edición
+  const abrirModalEdicion = (material: any) => {
+    setMaterialAEditar(material);
+    setEditForm({
+      nombre: material.nombre || '',
+      precio: material.precio || '',
+      cantidad: material.cantidad || '',
+      cantidadRestante: material.cantidadRestante || '',
+      color: material.color || '',
+      tipo: material.tipo || '',
+      subtipo: material.subtipo || '',
+      categoria: material.categoria || '',
+      marca: material.marca || '',
+      peso: material.peso || '',
+      imagen: material.imagen || ''
+    });
+    setShowEditModal(true);
+  };
+
+  // Función para guardar cambios del material
+  const guardarCambiosMaterial = async () => {
+    if (!materialAEditar) return;
+    
+    // Validaciones
+    if (!editForm.nombre.trim()) {
+      Alert.alert('Error', 'El nombre del material es obligatorio');
+      return;
+    }
+    
+    if (!editForm.precio || parseFloat(editForm.precio) <= 0) {
+      Alert.alert('Error', 'El precio debe ser mayor a 0');
+      return;
+    }
+    
+    if (!editForm.cantidad || parseFloat(editForm.cantidad) < 0) {
+      Alert.alert('Error', 'La cantidad no puede ser negativa');
+      return;
+    }
+    
+    if (!editForm.cantidadRestante || parseFloat(editForm.cantidadRestante) < 0) {
+      Alert.alert('Error', 'La cantidad restante no puede ser negativa');
+      return;
+    }
+    
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const materialRef = doc(db, 'usuarios', user.uid, 'materiales', materialAEditar.id);
+      
+      await updateDoc(materialRef, {
+        nombre: editForm.nombre.trim(),
+        precio: editForm.precio,
+        cantidad: editForm.cantidad,
+        cantidadRestante: editForm.cantidadRestante,
+        color: editForm.color.trim(),
+        tipo: editForm.tipo.trim(),
+        subtipo: editForm.subtipo.trim(),
+        categoria: editForm.categoria,
+        marca: editForm.marca.trim(),
+        peso: editForm.peso,
+        imagen: editForm.imagen,
+        fechaActualizacion: new Date().toISOString()
+      });
+
+      setShowEditModal(false);
+      setMaterialAEditar(null);
+      setEditForm({
+        nombre: '',
+        precio: '',
+        cantidad: '',
+        cantidadRestante: '',
+        color: '',
+        tipo: '',
+        subtipo: '',
+        categoria: '',
+        marca: '',
+        peso: '',
+        imagen: ''
+      });
+      
+      Alert.alert('Éxito', 'Material actualizado correctamente');
+    } catch (error) {
+      console.error('Error al actualizar material:', error);
+      Alert.alert('Error', 'No se pudo actualizar el material. Inténtalo de nuevo.');
     }
   };
 
@@ -134,10 +320,10 @@ const InventoryScreen: React.FC = () => {
             style={styles.categoriasScroll}
             contentContainerStyle={styles.categoriasContent}
           >
-            {categorias.length === 0 ? (
+            {categoriasMateriales.length === 0 ? (
               <Text style={{ color: '#a0a0a0', marginLeft: 10 }}>{t.noCategories}</Text>
             ) : (
-              categorias.map((cat) => (
+              categoriasMateriales.map((cat) => (
                 <TouchableOpacity
                   key={cat}
                   style={[
@@ -177,7 +363,7 @@ const InventoryScreen: React.FC = () => {
           ) : materialesFiltrados.length === 0 ? (
             <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 20 }}>{t.noMaterialsRegistered}</Text>
           ) : (
-            categorias.map((cat) => (
+            categoriasMateriales.map((cat) => (
               <View 
                 key={cat} 
                 style={styles.categoriaContainer}
@@ -186,13 +372,21 @@ const InventoryScreen: React.FC = () => {
                 <View style={styles.materialesGrid}>
                   {materialesFiltrados.filter(m => m.categoria === cat).map((mat) => (
                     <View key={mat.id} style={styles.materialCapsula}>
-                      {/* Botón eliminar material */}
-                      <TouchableOpacity
-                        style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
-                        onPress={() => { setMaterialAEliminar(mat); setShowDeleteAlert(true); }}
-                      >
-                        <Ionicons name="trash" size={20} color="#e53935" />
-                      </TouchableOpacity>
+                      {/* Botones de acción */}
+                      <View style={styles.actionButtons}>
+                        <TouchableOpacity
+                          style={styles.deleteButton}
+                          onPress={() => { setMaterialAEliminar(mat); setShowDeleteAlert(true); }}
+                        >
+                          <Ionicons name="trash-outline" size={18} color="#e53935" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.editButton}
+                          onPress={() => abrirModalEdicion(mat)}
+                        >
+                          <Ionicons name="create-outline" size={18} color="#00e676" />
+                        </TouchableOpacity>
+                      </View>
                       
                       {/* Imagen del material como título visual */}
                       <Image
@@ -291,6 +485,7 @@ const InventoryScreen: React.FC = () => {
         </View>
         {/* Espacio visual para la barra de tabs */}
         <View style={{ height: 70, backgroundColor: '#0d0d0d' }} />
+        
         {/* Modal de confirmación de eliminación */}
         {showDeleteAlert && (
           <Modal
@@ -317,6 +512,267 @@ const InventoryScreen: React.FC = () => {
             </View>
           </Modal>
         )}
+
+        {/* Modal de edición de material */}
+        {showEditModal && (
+          <Modal
+            visible={showEditModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setShowEditModal(false)}
+          >
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.modalOverlay}
+            >
+              <View style={styles.editModalContainer}>
+                <View style={styles.editModalHeader}>
+                  <Text style={styles.editModalTitle}>✏️ {t.editMaterial}</Text>
+                  <TouchableOpacity 
+                    onPress={() => setShowEditModal(false)}
+                    style={styles.closeButton}
+                  >
+                    <Ionicons name="close" size={24} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.editModalContent}>
+                  {/* Nombre del material */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>{t.materialName} *</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={editForm.nombre}
+                      onChangeText={(text) => setEditForm(prev => ({ ...prev, nombre: text }))}
+                      placeholder={t.materialName}
+                      placeholderTextColor="#666"
+                    />
+                  </View>
+
+                  {/* Categoría */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>{t.category}</Text>
+                    <View style={styles.pickerContainer}>
+                      {CATEGORIAS_BASE.map((categoria, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.pickerOption,
+                            editForm.categoria === categoria && styles.pickerOptionActive
+                          ]}
+                          onPress={() => setEditForm(prev => ({ ...prev, categoria }))}
+                        >
+                          <Text style={[
+                            styles.pickerOptionText,
+                            editForm.categoria === categoria && styles.pickerOptionTextActive
+                          ]}>
+                            {categoria}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Tipo */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>{t.type}</Text>
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.pickerScrollContainer}
+                    >
+                      <View style={styles.pickerContainer}>
+                        {editForm.categoria === 'Filamento' && TIPOS_FILAMENTO.map((tipo, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={[
+                              styles.pickerOption,
+                              editForm.tipo === tipo.tipo && styles.pickerOptionActive
+                            ]}
+                            onPress={() => setEditForm(prev => ({ ...prev, tipo: tipo.tipo, subtipo: '' }))}
+                          >
+                            <Text style={[
+                              styles.pickerOptionText,
+                              editForm.tipo === tipo.tipo && styles.pickerOptionTextActive
+                            ]}>
+                              {tipo.tipo}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                        {editForm.categoria === 'Resina' && TIPOS_RESINA.map((tipo, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={[
+                              styles.pickerOption,
+                              editForm.tipo === tipo && styles.pickerOptionActive
+                            ]}
+                            onPress={() => setEditForm(prev => ({ ...prev, tipo }))}
+                          >
+                            <Text style={[
+                              styles.pickerOptionText,
+                              editForm.tipo === tipo && styles.pickerOptionTextActive
+                            ]}>
+                              {tipo}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                        {editForm.categoria === 'Pintura' && TIPOS_PINTURA.map((tipo, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={[
+                              styles.pickerOption,
+                              editForm.tipo === tipo && styles.pickerOptionActive
+                            ]}
+                            onPress={() => setEditForm(prev => ({ ...prev, tipo }))}
+                          >
+                            <Text style={[
+                              styles.pickerOptionText,
+                              editForm.tipo === tipo && styles.pickerOptionTextActive
+                            ]}>
+                              {tipo}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  </View>
+
+                  {/* Subtipo */}
+                  {editForm.categoria === 'Filamento' && editForm.tipo && subtiposDisponibles.length > 0 && (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>{t.subtype}</Text>
+                      <View style={styles.pickerContainer}>
+                        {subtiposDisponibles.map((subtipo, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={[
+                              styles.pickerOption,
+                              editForm.subtipo === subtipo && styles.pickerOptionActive
+                            ]}
+                            onPress={() => setEditForm(prev => ({ ...prev, subtipo }))}
+                          >
+                            <Text style={[
+                              styles.pickerOptionText,
+                              editForm.subtipo === subtipo && styles.pickerOptionTextActive
+                            ]}>
+                              {subtipo}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Color */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>{t.color}</Text>
+                    <View style={styles.coloresContainer}>
+                      {COLORES.map((col) => (
+                        <TouchableOpacity
+                          key={col.nombre}
+                          style={[
+                            styles.colorPastilla,
+                            { backgroundColor: col.valor },
+                            editForm.color === col.valor ? styles.colorPastillaSeleccionada : null
+                          ]}
+                          onPress={() => setEditForm(prev => ({ ...prev, color: col.valor }))}
+                        >
+                          {editForm.color === col.valor && (
+                            <Text style={styles.checkColor}>✓</Text>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Marca */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>{t.brand}</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={editForm.marca}
+                      onChangeText={(text) => setEditForm(prev => ({ ...prev, marca: text }))}
+                      placeholder={t.brand}
+                      placeholderTextColor="#666"
+                    />
+                  </View>
+
+                  {/* Peso */}
+                  {(editForm.categoria === 'Filamento' || editForm.categoria === 'Resina') && (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>
+                        {editForm.categoria === 'Filamento' ? t.bobbinWeight : t.resinWeight}
+                      </Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={editForm.peso}
+                        onChangeText={(text) => setEditForm(prev => ({ ...prev, peso: text }))}
+                        placeholder={t.exampleWeight}
+                        placeholderTextColor="#666"
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  )}
+
+                  {/* Precio */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>{t.price} *</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={editForm.precio}
+                      onChangeText={(text) => setEditForm(prev => ({ ...prev, precio: text }))}
+                      placeholder="0.00"
+                      placeholderTextColor="#666"
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  {/* Cantidad */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>{t.quantity} *</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={editForm.cantidad}
+                      onChangeText={(text) => setEditForm(prev => ({ ...prev, cantidad: text }))}
+                      placeholder="0"
+                      placeholderTextColor="#666"
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  {/* Cantidad Restante */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>{t.remainingStock} *</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={editForm.cantidadRestante}
+                      onChangeText={(text) => setEditForm(prev => ({ ...prev, cantidadRestante: text }))}
+                      placeholder="0"
+                      placeholderTextColor="#666"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </ScrollView>
+
+                <View style={styles.editModalButtons}>
+                  <TouchableOpacity 
+                    onPress={() => setShowEditModal(false)} 
+                    style={styles.editModalButtonCancel}
+                  >
+                    <Text style={styles.editModalButtonTextCancel}>{t.cancel}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={guardarCambiosMaterial} 
+                    style={styles.editModalButtonSave}
+                  >
+                    <Text style={styles.editModalButtonTextSave}>{t.save}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+        )}
+
         {materialesAgotados.length > 0 && (
           <View style={{ marginTop: 32 }}>
             <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>{t.outOfStock}</Text>
@@ -463,6 +919,28 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  actionButtons: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'column',
+    gap: 8,
+    zIndex: 2,
+  },
+  editButton: {
+    backgroundColor: '#222',
+    borderRadius: 12,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#00e676',
+  },
+  deleteButton: {
+    backgroundColor: '#222',
+    borderRadius: 12,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#e53935',
+  },
   colorCirculo: {
     width: 40,
     height: 40,
@@ -576,6 +1054,145 @@ const styles = StyleSheet.create({
   },
   modalButtonTextDelete: {
     color: '#fff',
+    fontWeight: 'bold',
+  },
+  // Estilos para el modal de edición
+  editModalContainer: {
+    backgroundColor: '#181818',
+    borderRadius: 16,
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  editModalTitle: {
+    color: '#00e676',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  editModalContent: {
+    padding: 20,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  textInput: {
+    backgroundColor: '#222',
+    color: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  pickerOption: {
+    backgroundColor: '#222',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  pickerOptionActive: {
+    backgroundColor: '#00e676',
+    borderColor: '#00e676',
+  },
+  pickerOptionText: {
+    color: '#a0a0a0',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  pickerOptionTextActive: {
+    color: '#222',
+    fontWeight: 'bold',
+  },
+  editModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  editModalButtonCancel: {
+    backgroundColor: '#666',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    flex: 1,
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  editModalButtonTextCancel: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  editModalButtonSave: {
+    backgroundColor: '#00e676',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    flex: 1,
+    marginLeft: 8,
+    alignItems: 'center',
+  },
+  editModalButtonTextSave: {
+    color: '#222',
+    fontWeight: 'bold',
+  },
+  helperText: {
+    color: '#a0a0a0',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  pickerScrollContainer: {
+    maxHeight: 100,
+  },
+  coloresContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  colorPastilla: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorPastillaSeleccionada: {
+    borderColor: '#00e676',
+    borderWidth: 2,
+  },
+  checkColor: {
+    color: '#00e676',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

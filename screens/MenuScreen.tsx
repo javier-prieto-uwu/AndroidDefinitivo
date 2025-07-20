@@ -7,6 +7,7 @@ import { signOut } from 'firebase/auth'
 import { getDocs, collection, getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../utils/LanguageProvider';
 import translations from '../utils/locales';
 
@@ -33,12 +34,15 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
   const [estadisticas, setEstadisticas] = useState(estadisticasEjemplo);
   // Definir categoriasEjemplo aquí para que tenga acceso a 't'
   const categoriasEjemplo = [
-    { nombre: t.filaments, cantidad: 2, color: '#00e676' },
-    { nombre: t.resins, cantidad: 1, color: '#2196f3' },
-    { nombre: t.paints, cantidad: 0, color: '#ff9800' },
+    { nombre: t.filament, cantidad: 2, color: '#00e676' },
+    { nombre: t.resin, cantidad: 1, color: '#2196f3' },
+    { nombre: t.paint, cantidad: 0, color: '#ff9800' },
     { nombre: t.keychainRings, cantidad: 0, color: '#9c27b0' }
   ];
   const [categoriasMateriales, setCategoriasMateriales] = useState(categoriasEjemplo);
+  const [categoriasVendidas, setCategoriasVendidas] = useState<any[]>([]);
+  const [mejorCliente, setMejorCliente] = useState<any>(null);
+  const [topClientes, setTopClientes] = useState<any[]>([]);
   const [materiales, setMateriales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -140,20 +144,91 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         });
         // Asignar color por categoría
         Object.values(categorias).forEach((cat: any) => {
-              if (cat.nombre.toLowerCase().includes(t.filament.toLowerCase())) cat.color = '#00e676';
-    else if (cat.nombre.toLowerCase().includes(t.resin.toLowerCase())) cat.color = '#2196f3';
-    else if (cat.nombre.toLowerCase().includes(t.paint.toLowerCase())) cat.color = '#ff9800';
-          else if (cat.nombre.toLowerCase().includes('aro')) cat.color = '#9c27b0';
+          // Comparar con las categorías originales en español
+          if (cat.nombre === 'Filamento' || cat.nombre === 'Filaments') cat.color = '#00e676';
+          else if (cat.nombre === 'Resina' || cat.nombre === 'Resins') cat.color = '#2196f3';
+          else if (cat.nombre === 'Pinturas' || cat.nombre === 'Paints') cat.color = '#ff9800';
+          else if (cat.nombre.toLowerCase().includes('aro') || cat.nombre.toLowerCase().includes('ring')) cat.color = '#9c27b0';
           else cat.color = '#b0b0b0';
         });
+
+        // Calcular categorías vendidas
+        const categoriasVendidasContador = {};
+        calculos.forEach(calc => {
+          if (calc.estadoVenta === 'vendido' && calc.categoriaVenta) {
+            if (!categoriasVendidasContador[calc.categoriaVenta]) {
+              categoriasVendidasContador[calc.categoriaVenta] = 0;
+            }
+            categoriasVendidasContador[calc.categoriaVenta] += 1;
+          }
+        });
+
+        // Convertir a array y asignar colores
+        const categoriasVendidasArray = Object.entries(categoriasVendidasContador).map(([nombre, cantidad], index) => {
+          const colores = ['#00e676', '#2196f3', '#ff9800', '#9c27b0', '#e53935', '#43a047', '#1e88e5', '#f57c00'];
+          return {
+            nombre,
+            cantidad,
+            color: colores[index % colores.length]
+          };
+        });
+
+        // Calcular mejor cliente y top 10 de clientes
+        const clientesContador = {};
+        const clientesGanancias = {};
+        
+        calculos.forEach(calc => {
+          if (calc.estadoVenta === 'vendido' && calc.cliente && calc.cliente !== 'Pendiente') {
+            if (!clientesContador[calc.cliente]) {
+              clientesContador[calc.cliente] = 0;
+              clientesGanancias[calc.cliente] = 0;
+            }
+            clientesContador[calc.cliente] += 1;
+            clientesGanancias[calc.cliente] += parseFloat(calc.ganancia || 0);
+          }
+        });
+
+        // Encontrar el mejor cliente (por ganancias)
+        let mejorClienteData = null;
+        let maxGanancia = 0;
+        Object.entries(clientesGanancias).forEach(([cliente, ganancia]) => {
+          const gananciaNum = parseFloat(ganancia as string) || 0;
+          if (gananciaNum > maxGanancia) {
+            maxGanancia = gananciaNum;
+            mejorClienteData = {
+              nombre: cliente,
+              productos: clientesContador[cliente] as number,
+              ganancia: gananciaNum
+            };
+          }
+        });
+
+        // Crear top 10 de clientes (por cantidad de productos)
+        const topClientesArray = Object.entries(clientesContador)
+          .map(([cliente, cantidad]) => ({
+            nombre: cliente,
+            productos: cantidad as number,
+            ganancia: parseFloat(clientesGanancias[cliente] as string) || 0
+          }))
+          .sort((a, b) => b.productos - a.productos)
+          .slice(0, 10);
 
         // Filamento y resina consumidos
         let filamentoConsumido = 0;
         let resinaConsumida = 0;
         materiales.forEach(mat => {
-              if (mat.categoria === t.filament) filamentoConsumido += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
-    if (mat.categoria === t.resin) resinaConsumida += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
+          // Comparar con las categorías originales en español
+          if (mat.categoria === 'Filamento' || mat.categoria === 'Filaments') {
+            filamentoConsumido += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
+            console.log('Filamento encontrado:', mat.nombre, 'peso:', mat.peso, 'cantidad:', mat.cantidad);
+          }
+          if (mat.categoria === 'Resina' || mat.categoria === 'Resins') {
+            resinaConsumida += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
+            console.log('Resina encontrada:', mat.nombre, 'peso:', mat.peso, 'cantidad:', mat.cantidad);
+          }
         });
+        console.log('Total filamento consumido:', filamentoConsumido);
+        console.log('Total resina consumida:', resinaConsumida);
 
         // Proyectos completados
         const proyectosCompletados = calculos.length;
@@ -175,12 +250,52 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         // Costo total materiales y ganancias
         let costoTotalMateriales = 0;
         let ganancias = 0;
-        materiales.forEach(mat => {
-          costoTotalMateriales += parseFloat(mat.precio || 0) * parseFloat(mat.cantidad || 0);
+        
+        console.log('Calculando costo total de materiales...');
+        console.log('Total materiales:', materiales.length);
+        materiales.forEach((mat, index) => {
+          console.log(`Material ${index + 1}:`, {
+            nombre: mat.nombre,
+            precio: mat.precio,
+            cantidad: mat.cantidad,
+            peso: mat.peso,
+            precioBobina: mat.precioBobina,
+            precioResina: mat.precioResina,
+            precioPintura: mat.precioPintura
+          });
+          
+          // Intentar diferentes campos de precio
+          let precio = 0;
+          if (mat.precio) precio = parseFloat(mat.precio);
+          else if (mat.precioBobina) precio = parseFloat(mat.precioBobina);
+          else if (mat.precioResina) precio = parseFloat(mat.precioResina);
+          else if (mat.precioPintura) precio = parseFloat(mat.precioPintura);
+          
+          // Intentar diferentes campos de cantidad
+          let cantidad = 0;
+          if (mat.cantidad) cantidad = parseFloat(mat.cantidad);
+          else if (mat.peso) cantidad = parseFloat(mat.peso);
+          else if (mat.pesoBobina) cantidad = parseFloat(mat.pesoBobina);
+          
+          const costoMaterial = precio * cantidad;
+          
+          console.log('Valores calculados:', { precio, cantidad, costoMaterial });
+          
+          if (!isNaN(costoMaterial) && costoMaterial > 0) {
+            costoTotalMateriales += costoMaterial;
+          }
         });
+        
+        console.log('Costo total materiales:', costoTotalMateriales);
+        
         calculos.forEach(calc => {
-          ganancias += parseFloat(calc.costoTotal || 0);
+          const ganancia = parseFloat(calc.costoTotal || 0);
+          if (!isNaN(ganancia)) {
+            ganancias += ganancia;
+          }
         });
+        
+        console.log('Ganancias totales:', ganancias);
 
         setEstadisticas({
           materialesDisponibles: materiales.length,
@@ -195,6 +310,9 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           pedidosPendientes: 0
         });
         setCategoriasMateriales(Object.values(categorias));
+        setCategoriasVendidas(categoriasVendidasArray);
+        setMejorCliente(mejorClienteData);
+        setTopClientes(topClientesArray);
         setLoading(false);
       };
 
@@ -246,10 +364,14 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
 
   // Calcular datos reales para la gráfica circular de tipos de filamento
   const tiposFilamentoContador: Record<string, number> = {};
-  materiales.filter(m => m.categoria === t.filament).forEach(m => {
+  const materialesFilamento = materiales.filter(m => m.categoria === 'Filamento' || m.categoria === 'Filaments');
+  console.log('Materiales de filamento encontrados:', materialesFilamento.length);
+  materialesFilamento.forEach(m => {
     const tipo = m.tipo || 'Otro';
     tiposFilamentoContador[tipo] = (tiposFilamentoContador[tipo] || 0) + 1;
+    console.log('Tipo de filamento:', tipo, 'material:', m.nombre);
   });
+  console.log('Tipos de filamento contados:', tiposFilamentoContador);
   const colores = ['#00e676', '#ff9800', '#2196f3', '#9c27b0', '#b0b0b0', '#e53935', '#43a047', '#1e88e5'];
   const pieData = Object.entries(tiposFilamentoContador).map(([tipo, cantidad], i) => ({
     name: tipo,
@@ -445,6 +567,109 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         ))}
       </View>
 
+      {/* Categorías más vendidas */}
+      {categoriasVendidas.length > 0 && (
+        <View style={styles.categoriesContainer}>
+          <Text style={styles.sectionTitle}>{t.topSellingCategories}</Text>
+          
+          {/* Gráfico de pastel de categorías vendidas */}
+          <View style={{ alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+            <PieChart
+              data={categoriasVendidas.map(cat => ({
+                name: cat.nombre,
+                population: cat.cantidad,
+                color: cat.color,
+                legendFontColor: '#fff',
+                legendFontSize: 13,
+              }))}
+              width={Dimensions.get('window').width - 64}
+              height={180}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(0, 230, 118, ${opacity})`,
+                labelColor: () => '#fff',
+                backgroundColor: '#181818',
+                backgroundGradientFrom: '#181818',
+                backgroundGradientTo: '#181818',
+                decimalPlaces: 0,
+              }}
+              accessor={'population'}
+              backgroundColor={'transparent'}
+              paddingLeft={"0"}
+              absolute
+            />
+          </View>
+          
+          {/* Lista de categorías vendidas */}
+          <View style={{ marginTop: 16 }}>
+            {categoriasVendidas.map((categoria, index) => (
+              <View key={index} style={styles.categoryItem}>
+                <View style={styles.categoryInfo}>
+                  <View style={[styles.categoryDot, { backgroundColor: categoria.color }]} />
+                  <Text style={styles.categoryName}>{categoria.nombre}</Text>
+                </View>
+                <Text style={styles.categoryAmount}>{categoria.cantidad} {t.sold}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Mejor Cliente */}
+      {mejorCliente && (
+        <View style={styles.categoriesContainer}>
+          <Text style={styles.sectionTitle}>{t.bestCustomer}</Text>
+          
+          <View style={styles.bestCustomerCard}>
+            <View style={styles.bestCustomerHeader}>
+              <Ionicons name="trophy" size={24} color="#ffd600" />
+              <Text style={styles.bestCustomerName}>{mejorCliente.nombre}</Text>
+            </View>
+            
+            <View style={styles.bestCustomerStats}>
+              <View style={styles.bestCustomerStat}>
+                <Text style={styles.bestCustomerStatLabel}>{t.productsSold}</Text>
+                <Text style={styles.bestCustomerStatValue}>{mejorCliente.productos}</Text>
+              </View>
+              
+              <View style={styles.bestCustomerStat}>
+                <Text style={styles.bestCustomerStatLabel}>{t.totalProfit}</Text>
+                <Text style={[styles.bestCustomerStatValue, { color: '#00e676' }]}>
+                  ${mejorCliente.ganancia.toFixed(2)} MXN
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Top 10 Clientes */}
+      {topClientes.length > 0 && (
+        <View style={styles.categoriesContainer}>
+          <Text style={styles.sectionTitle}>{t.topCustomers}</Text>
+          
+          <View style={styles.topCustomersList}>
+            {topClientes.map((cliente, index) => (
+              <View key={index} style={styles.topCustomerItem}>
+                <View style={styles.topCustomerRank}>
+                  <Text style={styles.topCustomerRankText}>#{index + 1}</Text>
+                </View>
+                
+                <View style={styles.topCustomerInfo}>
+                  <Text style={styles.topCustomerName}>{cliente.nombre}</Text>
+                  <Text style={styles.topCustomerDetails}>
+                    {cliente.productos} {t.productsSold} • ${cliente.ganancia.toFixed(2)} MXN
+                  </Text>
+                </View>
+                
+                {index === 0 && (
+                  <Ionicons name="trophy" size={16} color="#ffd600" />
+                )}
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
       {/* Métricas financieras */}
       <View style={styles.financialContainer}>
         <Text style={styles.sectionTitle}>{t.financialMetrics}</Text>
@@ -453,7 +678,10 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>{t.totalMaterialCost}</Text>
             <Text style={styles.financialAmount}>
-              {Number(estadisticas.costoTotalMateriales).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+              {isNaN(estadisticas.costoTotalMateriales) || estadisticas.costoTotalMateriales === 0 
+                ? '$0.00 MXN' 
+                : Number(estadisticas.costoTotalMateriales).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+              }
             </Text>
             <Text style={styles.financialPeriod}>{t.currentInventory}</Text>
           </View>
@@ -461,7 +689,10 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>{t.totalProjectValue}</Text>
             <Text style={[styles.financialAmount, { color: '#00e676' }]}> 
-              {Number(estadisticas.ganancias).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+              {isNaN(estadisticas.ganancias) || estadisticas.ganancias === 0 
+                ? '$0.00 MXN' 
+                : Number(estadisticas.ganancias).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+              }
             </Text>
             <Text style={styles.financialPeriod}>{t.allProjects}</Text>
           </View>
@@ -489,7 +720,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('add')}
           >
-            <Text style={styles.actionIcon}>➕</Text>
+            <Ionicons name="add-circle-outline" size={24} color="#00e676" />
             <Text style={styles.actionText}>{t.addMaterial}</Text>
           </TouchableOpacity>
           
@@ -497,7 +728,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('inventory')}
           >
-                          <Ionicons name="cube-outline" size={24} color="#00e676" />
+            <Ionicons name="cube-outline" size={24} color="#00e676" />
             <Text style={styles.actionText}>{t.inventory}</Text>
           </TouchableOpacity>
 
@@ -505,7 +736,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('calculator')}
           >
-            <Text style={styles.actionIcon}>🧮</Text>
+            <Ionicons name="calculator-outline" size={24} color="#00e676" />
             <Text style={styles.actionText}>{t.calculator}</Text>
           </TouchableOpacity>
 
@@ -513,7 +744,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             style={styles.actionButton}
             onPress={() => handleQuickAction('history')}
           >
-                          <Ionicons name="calculator-outline" size={24} color="#00e676" />
+            <Ionicons name="time-outline" size={24} color="#00e676" />
             <Text style={styles.actionText}>{t.history}</Text>
           </TouchableOpacity>
         </View>
@@ -777,6 +1008,84 @@ const styles = StyleSheet.create({
     color: '#00e676',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  // Estilos para mejor cliente
+  bestCustomerCard: {
+    backgroundColor: '#181818',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#222',
+    marginBottom: 8,
+  },
+  bestCustomerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  bestCustomerName: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  bestCustomerStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  bestCustomerStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  bestCustomerStatLabel: {
+    color: '#a0a0a0',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  bestCustomerStatValue: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Estilos para top 10 clientes
+  topCustomersList: {
+    gap: 8,
+  },
+  topCustomerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#181818',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  topCustomerRank: {
+    backgroundColor: '#00e676',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 12,
+    minWidth: 32,
+    alignItems: 'center',
+  },
+  topCustomerRankText: {
+    color: '#222',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  topCustomerInfo: {
+    flex: 1,
+  },
+  topCustomerName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  topCustomerDetails: {
+    color: '#a0a0a0',
+    fontSize: 12,
   },
 });
 
