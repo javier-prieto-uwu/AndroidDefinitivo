@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../utils/LanguageProvider';
+import { getCurrency } from '../utils';
 import translations from '../utils/locales';
 import { auth, app } from '../api/firebase';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
@@ -157,7 +158,7 @@ const SalesModal: React.FC<SalesModalProps> = ({
             <View style={styles.impresionInfo}>
               <Text style={styles.impresionTitle}>{impresion?.nombre}</Text>
               <Text style={styles.impresionCosto}>
-                {t.productionCost}: ${impresion?.costoTotal || '0'} MXN
+                {t.productionCost}: ${impresion?.costoTotal || '0'} ${getCurrency(lang)}
               </Text>
             </View>
 
@@ -252,7 +253,7 @@ const SalesModal: React.FC<SalesModalProps> = ({
               <View style={styles.gananciaContainer}>
                 <Text style={styles.gananciaLabel}>{t.profit}:</Text>
                 <Text style={styles.gananciaValue}>
-                  ${(parseFloat(precioVenta) - parseFloat(impresion?.costoTotal || '0')).toFixed(2)} MXN
+                  ${(parseFloat(precioVenta) - parseFloat(impresion?.costoTotal || '0')).toFixed(2)} ${getCurrency(lang)}
                 </Text>
               </View>
             )}
@@ -449,4 +450,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SalesModal; 
+export default SalesModal;

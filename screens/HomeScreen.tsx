@@ -5,6 +5,7 @@ import { auth, app } from '../api/firebase';
 import { getDocs, collection, getFirestore, query, orderBy, limit } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../utils/LanguageProvider';
+import { getCurrency } from '../utils';
 import translations from '../utils/locales';
 import { limpiarPrecio } from '../utils/materialUtils';
 
@@ -116,7 +117,7 @@ const HomeScreen: React.FC = () => {
             adjustsFontSizeToFit
             minimumFontScale={0.7}
           >
-            {estadisticas.valorTotal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+            {estadisticas.valorTotal.toLocaleString(lang === 'en' ? 'en-US' : 'es-MX', { style: 'currency', currency: getCurrency(lang) })}
           </Text>
           <Text style={styles.statLabel}>{t.totalValue}</Text>
           <Ionicons name="cash-outline" size={24} color="#00e676" style={styles.statIcon} />
@@ -134,7 +135,7 @@ const HomeScreen: React.FC = () => {
         <Text style={styles.quoteLabel}>{t.lastQuote}</Text>
         <View style={styles.quoteAmountContainer}>
           <Text style={styles.quoteAmount}>${estadisticas.ultimaCotizacion}</Text>
-          <Text style={styles.currency}>MXN</Text>
+          <Text style={styles.currency}>{getCurrency(lang)}</Text>
         </View>
       </View>
 
@@ -144,7 +145,7 @@ const HomeScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>{t.materialsAvailable}</Text>
           <TouchableOpacity 
             style={styles.addButton}
-            onPress={() => navigation.navigate('Agregar' as never)}
+            onPress={() => navigation.navigate(t.add as never)}
           >
             <Text style={styles.addButtonText}>{t.add}</Text>
           </TouchableOpacity>
@@ -392,4 +393,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen; 
+export default HomeScreen;

@@ -121,7 +121,6 @@ const TIPOS_FILAMENTO = [
   { tipo: 'ASA', subtipos: ['Normal'] },
   { tipo: 'PVA', subtipos: ['Normal'] },
   { tipo: 'PP', subtipos: ['Normal'] },
-  { tipo: 'Wood', subtipos: ['Normal'] },
   { tipo: 'Metal', subtipos: ['Normal'] },
 ];
 const TIPOS_RESINA = [
@@ -193,7 +192,6 @@ const AddMaterialScreen: React.FC = () => {
     'ASA': t.asa,
     'PVA': t.pva,
     'PP': t.pp,
-    'Wood': t.wood,
     'Metal': t.metal,
   };
   const SUBTIPOS_FILAMENTO_UI = {
@@ -247,7 +245,7 @@ const AddMaterialScreen: React.FC = () => {
     'Cobre': t.copper,
   };
 
-  // Categorías base traducidas SOLO PARA UI
+  // Categorías base - NO MODIFICAR estos valores ya que están vinculados a la base de datos
   const CATEGORIAS_BASE = [
     'Filamento',
     'Resina',
@@ -261,6 +259,14 @@ const AddMaterialScreen: React.FC = () => {
     'Resina': t.resin,
     'Pintura': t.paint,
     'Aros de llavero': t.keychainRings,
+  };
+  
+  // Mapeo inverso para obtener la clave de base de datos a partir de la traducción
+  const CATEGORIAS_BASE_INVERSE = {
+    [t.filament]: 'Filamento',
+    [t.resin]: 'Resina',
+    [t.paint]: 'Pintura',
+    [t.keychainRings]: 'Aros de llavero',
   };
 
   // Tipos de filamento traducidos
@@ -342,16 +348,43 @@ const AddMaterialScreen: React.FC = () => {
 
   const handleGuardar = async (): Promise<void> => {
     console.log('Material a guardar:', material);
+    
+    // Traducir tipos y subtipos al inglés si el idioma está en inglés
+    let materialParaGuardar = { ...material };
+    if (lang === 'en') {
+      // Mapeo de español a inglés para tipos y subtipos
+      const tipoMap: { [key: string]: string } = {
+        'Madera': 'Wood',
+        'Seda': 'Silk',
+        'Transparente': 'Transparent',
+        'Brillante': 'Glossy',
+        'Mate': 'Matte',
+        'Flexible': 'Flexible',
+        'Multicolor': 'Multicolor',
+        'Reciclado': 'Recycled',
+        'Carbono': 'Carbon',
+        'Alta temperatura': 'High Temperature',
+        'Ignífugo': 'Fire Resistant'
+      };
+      
+      if (materialParaGuardar.subtipo && tipoMap[materialParaGuardar.subtipo]) {
+        materialParaGuardar.subtipo = tipoMap[materialParaGuardar.subtipo];
+      }
+      if (materialParaGuardar.tipo && tipoMap[materialParaGuardar.tipo]) {
+        materialParaGuardar.tipo = tipoMap[materialParaGuardar.tipo];
+      }
+    }
+    
     // Generar nombre usando utilidad
     const nombreGenerado = generarNombreMaterial({
-      ...material,
+      ...materialParaGuardar,
       id: '',
       nombre: ''
     });
     
     // Preparar material para guardar
     let materialAGuardar: any = { 
-      ...material, 
+      ...materialParaGuardar, 
       nombre: nombreGenerado,
       fechaRegistro: new Date().toISOString(),
       cantidadInicial: material.cantidad // Guardar el stock inicial (unidades)
@@ -665,6 +698,7 @@ const AddMaterialScreen: React.FC = () => {
               }}
               onPress={() => {
                 let categoriaAuto = '';
+                // Mantener los valores originales para la base de datos
                 if (value === 'filamento') categoriaAuto = 'Filamento';
                 else if (value === 'resina') categoriaAuto = 'Resina';
                 else if (value === 'pinturas') categoriaAuto = 'Pintura';
@@ -739,7 +773,7 @@ const AddMaterialScreen: React.FC = () => {
                   material.categoria === cat ? styles.pastillaTextoSeleccionada : null
                 ]}>{cat}</Text>
                 <TouchableOpacity onPress={() => handleEliminarCategoria(cat)} style={{ marginLeft: 6, backgroundColor: 'transparent', borderRadius: 10, padding: 2 }}>
-                  <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 16 }}>×</Text>
+                  <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 16 }}>{t.deleteSymbol || '×'}</Text>
                 </TouchableOpacity>
               </TouchableOpacity>
             </View>
@@ -749,7 +783,7 @@ const AddMaterialScreen: React.FC = () => {
             style={[styles.pastilla, { backgroundColor: '#222', borderColor: '#00e676', borderWidth: 2 }]}
             onPress={() => setMostrarNuevaCategoria(true)}
           >
-            <Text style={{ color: '#00e676', fontSize: 22, fontWeight: 'bold' }}>+</Text>
+            <Text style={{ color: '#00e676', fontSize: 22, fontWeight: 'bold' }}>{t.addSymbol || '+'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -1748,4 +1782,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddMaterialScreen; 
+export default AddMaterialScreen;

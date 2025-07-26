@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "dmaterial-manager",
+    "name": "3D material",
     "slug": "dmaterial-manager",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo3dmaterial.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo3dmaterial.png",
       "resizeMode": "contain",
       "backgroundColor": "#0d0d0d"
     },
@@ -19,8 +19,9 @@
     },
     "android": {
       "package": "com.dmaterial.manager",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo3dmaterial.png",
         "backgroundColor": "#0d0d0d"
       },
       "edgeToEdgeEnabled": true

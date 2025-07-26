@@ -49,6 +49,8 @@ const InventoryScreen: React.FC = () => {
   
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
   const [busqueda, setBusqueda] = useState('');
+  const [ordenamiento, setOrdenamiento] = useState('nombre'); // 'nombre', 'fecha', 'cantidad', 'costo', 'categoria'
+  const [ordenAscendente, setOrdenAscendente] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
   const isFocused = useIsFocused();
   const [materialAEliminar, setMaterialAEliminar] = useState<any>(null);
@@ -83,7 +85,6 @@ const InventoryScreen: React.FC = () => {
     { tipo: 'ASA', subtipos: ['Normal'] },
     { tipo: 'PVA', subtipos: ['Normal'] },
     { tipo: 'PP', subtipos: ['Normal'] },
-    { tipo: 'Wood', subtipos: ['Normal'] },
     { tipo: 'Metal', subtipos: ['Normal'] },
   ];
   const TIPOS_RESINA = [
@@ -97,6 +98,39 @@ const InventoryScreen: React.FC = () => {
     'Especiales',
   ];
   const TIPOS_PINTURA = ['Acrílica', 'Esmalte', 'Spray', 'Óleo', 'Vinílica', 'Acuarela'];
+  
+  // MAPEO DE TRADUCCIÓN PARA UI
+  const TIPOS_FILAMENTO_UI = {
+    'PLA': t.pla,
+    'ABS': t.abs,
+    'PETG': t.petg,
+    'TPU': t.tpu,
+    'Nylon': t.nylon,
+    'PC': t.pc,
+    'HIPS': t.hips,
+    'ASA': t.asa,
+    'PVA': t.pva,
+    'PP': t.pp,
+    'Metal': t.metal,
+  };
+  const TIPOS_RESINA_UI = {
+    'Estándar': t.standard,
+    'Tough (tipo ABS)': t.tough,
+    'Flexible': t.flexibleResin,
+    'Alta temperatura': t.highTempResin,
+    'Dental / Biocompatible': t.dental,
+    'Transparente': t.transparentResin,
+    'Rápida': t.fast,
+    'Especiales': t.special,
+  };
+  const TIPOS_PINTURA_UI = {
+    'Acrílica': t.acrylic,
+    'Esmalte': t.enamel,
+    'Spray': t.spray,
+    'Óleo': t.oil,
+    'Vinílica': t.vinyl,
+    'Acuarela': t.watercolor,
+  };
   const COLORES = [
     { nombre: 'Negro', valor: '#222' },
     { nombre: 'Blanco', valor: '#fff' },
@@ -138,14 +172,73 @@ const InventoryScreen: React.FC = () => {
     { nombre: 'Cian', valor: '#00bcd4' },
     { nombre: 'Magenta', valor: '#e91e63' },
   ];
+  
+  // MAPEO DE TRADUCCIÓN PARA COLORES
+  const COLORES_UI = {
+    'Negro': t.black,
+    'Blanco': t.white,
+    'Rojo': t.red,
+    'Rojo Oscuro': t.darkRed,
+    'Rosa': t.pink,
+    'Rosa Claro': t.lightPink,
+    'Naranja': t.orange,
+    'Naranja Claro': t.lightOrange,
+    'Amarillo': t.yellow,
+    'Amarillo Claro': t.lightYellow,
+    'Verde': t.green,
+    'Verde Claro': t.lightGreen,
+    'Verde Azulado': t.teal,
+    'Azul': t.blue,
+    'Azul Claro': t.lightBlue,
+    'Azul Oscuro': t.darkBlue,
+    'Índigo': t.indigo,
+    'Morado': t.purple,
+    'Morado Claro': t.lightPurple,
+    'Violeta': t.violet,
+    'Gris': t.gray,
+    'Gris Claro': t.lightGray,
+    'Gris Oscuro': t.darkGray,
+    'Marrón': t.brown,
+    'Marrón Claro': t.lightBrown,
+    'Beige': t.beige,
+    'Transparente': t.transparentColor,
+    'Oro': t.gold,
+    'Plata': t.silver,
+    'Cobre': t.copper,
+    'Bronce': t.bronze,
+    'Turquesa': t.turquoise,
+    'Coral': t.coral,
+    'Lavanda': t.lavender,
+    'Menta': t.mint,
+    'Melocotón': t.peach,
+    'Lima': t.lime,
+    'Cian': t.cyan,
+    'Magenta': t.magenta,
+  };
 
-  // Categorías base
+  // Categorías base - NO MODIFICAR (vinculado a la base de datos)
   const CATEGORIAS_BASE = [
     'Filamento',
     'Resina',
     'Pintura',
     'Aros de llavero',
   ];
+  
+  // Mapeo para UI de categorías base
+  const CATEGORIAS_BASE_UI = {
+    'Filamento': t.filament,
+    'Resina': t.resin,
+    'Pintura': t.paint,
+    'Aros de llavero': t.keyrings,
+  };
+  
+  // Mapeo inverso para obtener la clave de base de datos a partir de la traducción
+  const CATEGORIAS_BASE_INVERSE = {
+    [t.filament]: 'Filamento',
+    [t.resin]: 'Resina',
+    [t.paint]: 'Pintura',
+    [t.keyrings]: 'Aros de llavero',
+  };
 
   // Obtener subtipos según el tipo seleccionado (para filamento)
   const subtiposDisponibles = editForm.categoria === 'Filamento'
@@ -154,6 +247,47 @@ const InventoryScreen: React.FC = () => {
 
   const db = getFirestore(app);
 
+  // Función para ordenar materiales
+  const ordenarMateriales = (materiales) => {
+    const materialesOrdenados = [...materiales].sort((a, b) => {
+      let valorA, valorB;
+      
+      switch (ordenamiento) {
+        case 'nombre':
+          valorA = a.nombre?.toLowerCase() || '';
+          valorB = b.nombre?.toLowerCase() || '';
+          break;
+        case 'fecha':
+          valorA = new Date(a.fechaRegistro || a.fechaCreacion || 0).getTime();
+          valorB = new Date(b.fechaRegistro || b.fechaCreacion || 0).getTime();
+          break;
+        case 'cantidad':
+          valorA = parseFloat(a.cantidadRestante || a.cantidad || '0');
+          valorB = parseFloat(b.cantidadRestante || b.cantidad || '0');
+          break;
+        case 'costo':
+          valorA = parseFloat(a.precio || '0');
+          valorB = parseFloat(b.precio || '0');
+          break;
+        case 'categoria':
+          valorA = a.categoria?.toLowerCase() || '';
+          valorB = b.categoria?.toLowerCase() || '';
+          break;
+        default:
+          valorA = a.nombre?.toLowerCase() || '';
+          valorB = b.nombre?.toLowerCase() || '';
+      }
+      
+      if (typeof valorA === 'string') {
+        return ordenAscendente ? valorA.localeCompare(valorB) : valorB.localeCompare(valorA);
+      } else {
+        return ordenAscendente ? valorA - valorB : valorB - valorA;
+      }
+    });
+    
+    return materialesOrdenados;
+  };
+
   // Filtro de materiales por búsqueda
   const materialesFiltrados = materiales.filter(mat => {
     const texto = `${mat.nombre || ''} ${mat.tipo || ''} ${mat.subtipo || ''}`.toLowerCase();
@@ -161,8 +295,8 @@ const InventoryScreen: React.FC = () => {
   });
 
   // Filtrar materiales agotados y disponibles
-  const materialesAgotados = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') <= 0);
-  const materialesDisponibles = materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') > 0);
+  const materialesAgotados = ordenarMateriales(materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') <= 0));
+  const materialesDisponibles = ordenarMateriales(materialesFiltrados.filter(m => parseFloat(m.cantidadRestante || m.cantidad || '0') > 0));
 
   // Agrupar materiales disponibles por categoría
   const categoriasMateriales = Array.from(new Set(materialesDisponibles.map(m => m.categoria)))
@@ -236,6 +370,34 @@ const InventoryScreen: React.FC = () => {
       return;
     }
     
+    // Traducir tipos y subtipos al inglés si el idioma está en inglés
+    let tipoParaGuardar = editForm.tipo.trim();
+    let subtipoParaGuardar = editForm.subtipo.trim();
+    
+    if (lang === 'en') {
+      // Mapeo de español a inglés para tipos y subtipos
+      const tipoMap: { [key: string]: string } = {
+        'Madera': 'Wood',
+        'Seda': 'Silk',
+        'Transparente': 'Transparent',
+        'Brillante': 'Glossy',
+        'Mate': 'Matte',
+        'Flexible': 'Flexible',
+        'Multicolor': 'Multicolor',
+        'Reciclado': 'Recycled',
+        'Carbono': 'Carbon',
+        'Alta temperatura': 'High Temperature',
+        'Ignífugo': 'Fire Resistant'
+      };
+      
+      if (tipoMap[subtipoParaGuardar]) {
+        subtipoParaGuardar = tipoMap[subtipoParaGuardar];
+      }
+      if (tipoMap[tipoParaGuardar]) {
+        tipoParaGuardar = tipoMap[tipoParaGuardar];
+      }
+    }
+    
     try {
       const user = auth.currentUser;
       if (!user) return;
@@ -248,8 +410,8 @@ const InventoryScreen: React.FC = () => {
         cantidad: editForm.cantidad,
         cantidadRestante: editForm.cantidadRestante,
         color: editForm.color.trim(),
-        tipo: editForm.tipo.trim(),
-        subtipo: editForm.subtipo.trim(),
+        tipo: tipoParaGuardar,
+        subtipo: subtipoParaGuardar,
         categoria: editForm.categoria,
         marca: editForm.marca.trim(),
         peso: editForm.peso,
@@ -308,6 +470,16 @@ const InventoryScreen: React.FC = () => {
     }
   };
 
+  // Función para cambiar el ordenamiento
+  const cambiarOrdenamiento = (nuevoOrdenamiento) => {
+    if (ordenamiento === nuevoOrdenamiento) {
+      setOrdenAscendente(!ordenAscendente);
+    } else {
+      setOrdenamiento(nuevoOrdenamiento);
+      setOrdenAscendente(true);
+    }
+  };
+
   return (
     <ScrollView style={styles.container} ref={scrollViewRef}>
         {/* Encabezado */}
@@ -335,6 +507,56 @@ const InventoryScreen: React.FC = () => {
           />
         </View>
 
+        {/* Botones de ordenamiento */}
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>{t.sortBy}:</Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 4 }}
+          >
+            {[
+              { key: 'nombre', label: t.sortByName },
+              { key: 'fecha', label: t.sortByDate },
+              { key: 'cantidad', label: t.sortByQuantity },
+              { key: 'costo', label: t.sortByCost },
+              { key: 'categoria', label: t.sortByCategory }
+            ].map((opcion) => (
+              <TouchableOpacity
+                key={opcion.key}
+                style={{
+                  backgroundColor: ordenamiento === opcion.key ? '#00e676' : '#222',
+                  borderRadius: 20,
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  marginRight: 8,
+                  borderWidth: 1,
+                  borderColor: ordenamiento === opcion.key ? '#00e676' : '#333',
+                  flexDirection: 'row',
+                  alignItems: 'center'
+                }}
+                onPress={() => cambiarOrdenamiento(opcion.key)}
+              >
+                <Text style={{
+                  color: ordenamiento === opcion.key ? '#000' : '#fff',
+                  fontSize: 14,
+                  fontWeight: ordenamiento === opcion.key ? 'bold' : 'normal'
+                }}>
+                  {opcion.label}
+                </Text>
+                {ordenamiento === opcion.key && (
+                  <Ionicons 
+                    name={ordenAscendente ? 'arrow-up' : 'arrow-down'} 
+                    size={14} 
+                    color="#000" 
+                    style={{ marginLeft: 4 }}
+                  />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* Selector de categorías */}
         <View style={styles.selectorContainer}>
           <Text style={styles.selectorTitle}>{t.categories}</Text>
@@ -360,7 +582,7 @@ const InventoryScreen: React.FC = () => {
                     styles.categoriaBotonText,
                     categoriaSeleccionada === cat ? styles.categoriaBotonTextActivo : null
                   ]}>
-                    {cat}
+                    {CATEGORIAS_BASE.includes(cat) ? CATEGORIAS_BASE_UI[cat] : cat}
                   </Text>
                 </TouchableOpacity>
               ))
@@ -392,7 +614,7 @@ const InventoryScreen: React.FC = () => {
                 key={cat} 
                 style={styles.categoriaContainer}
               >
-                <Text style={styles.categoriaTitulo}>{cat}</Text>
+                <Text style={styles.categoriaTitulo}>{CATEGORIAS_BASE.includes(cat) ? CATEGORIAS_BASE_UI[cat] : cat}</Text>
                 <View style={{
                   flexDirection: isLargeDevice ? 'row' : 'column',
                   flexWrap: isLargeDevice ? 'wrap' : 'nowrap',
@@ -497,14 +719,14 @@ const InventoryScreen: React.FC = () => {
                           <Text style={styles.detalleValor}>
                             {typeof mat.cantidadRestante !== 'undefined' 
                               ? mat.cantidadRestante + (() => {
-                                  const categoria = mat.categoria || 'Filamento';
+                                  const categoria = mat.categoria || CATEGORIAS_BASE[0]; // Filamento por defecto
                                   switch (categoria) {
-                                    case 'Filamento':
-                                    case 'Resina':
+                                    case CATEGORIAS_BASE[0]: // Filamento
+                                    case CATEGORIAS_BASE[1]: // Resina
                                       return 'g';
-                                    case 'Pintura':
+                                    case CATEGORIAS_BASE[2]: // Pintura
                                       return 'ml';
-                                    case 'Aros de llavero':
+                                    case CATEGORIAS_BASE[3]: // Aros de llavero
                                     default:
                                       return ' ' + t.units;
                                   }
@@ -1300,4 +1522,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default InventoryScreen; 
+export default InventoryScreen;

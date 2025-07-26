@@ -9,6 +9,7 @@ import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../utils/LanguageProvider';
+import { getCurrency } from '../utils';
 import translations from '../utils/locales';
 
 // Simulación de datos locales para estadísticas y categorías
@@ -112,16 +113,16 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'add':
-        navigation.navigate('Agregar' as never);
+        navigation.navigate(t.add as never);
         break;
       case 'inventory':
-        navigation.navigate('Inventario' as never);
+        navigation.navigate(t.inventory as never);
         break;
       case 'calculator':
-        navigation.navigate('Costos' as never);
+        navigation.navigate(t.costs as never);
         break;
       case 'history':
-        navigation.navigate('Historial' as never);
+        navigation.navigate(t.history as never);
         break;
     }
   };
@@ -634,7 +635,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
               <View style={styles.bestCustomerStat}>
                 <Text style={styles.bestCustomerStatLabel}>{t.totalProfit}</Text>
                 <Text style={[styles.bestCustomerStatValue, { color: '#00e676' }]}>
-                  ${mejorCliente.ganancia.toFixed(2)} MXN
+                  ${mejorCliente.ganancia.toFixed(2)} ${getCurrency(lang)}
                 </Text>
               </View>
             </View>
@@ -657,7 +658,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
                 <View style={styles.topCustomerInfo}>
                   <Text style={styles.topCustomerName}>{cliente.nombre}</Text>
                   <Text style={styles.topCustomerDetails}>
-                    {cliente.productos} {t.productsSold} • ${cliente.ganancia.toFixed(2)} MXN
+                    {cliente.productos} {t.productsSold} • ${cliente.ganancia.toFixed(2)} ${getCurrency(lang)}
                   </Text>
                 </View>
                 
@@ -679,8 +680,8 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             <Text style={styles.financialLabel}>{t.totalMaterialCost}</Text>
             <Text style={styles.financialAmount}>
               {isNaN(estadisticas.costoTotalMateriales) || estadisticas.costoTotalMateriales === 0 
-                ? '$0.00 MXN' 
-                : Number(estadisticas.costoTotalMateriales).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+                ? `$0.00 ${getCurrency(lang)}`
+                : Number(estadisticas.costoTotalMateriales).toLocaleString(lang === 'en' ? 'en-US' : 'es-MX', { style: 'currency', currency: getCurrency(lang) })
               }
             </Text>
             <Text style={styles.financialPeriod}>{t.currentInventory}</Text>
@@ -690,8 +691,8 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             <Text style={styles.financialLabel}>{t.totalProjectValue}</Text>
             <Text style={[styles.financialAmount, { color: '#00e676' }]}> 
               {isNaN(estadisticas.ganancias) || estadisticas.ganancias === 0 
-                ? '$0.00 MXN' 
-                : Number(estadisticas.ganancias).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+                ? `$0.00 ${getCurrency(lang)}`
+                : Number(estadisticas.ganancias).toLocaleString(lang === 'en' ? 'en-US' : 'es-MX', { style: 'currency', currency: getCurrency(lang) })
               }
             </Text>
             <Text style={styles.financialPeriod}>{t.allProjects}</Text>
@@ -1088,4 +1089,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MenuScreen; 
+export default MenuScreen;

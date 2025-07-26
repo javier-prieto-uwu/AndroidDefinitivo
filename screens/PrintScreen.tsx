@@ -17,6 +17,7 @@ import { auth, app } from '../api/firebase';
 import { getFirestore, collection, getDocs, deleteDoc, doc, addDoc, updateDoc } from 'firebase/firestore';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../utils/LanguageProvider';
+import { getCurrency } from '../utils';
 import translations from '../utils/locales';
 import SalesModal from '../components/SalesModal';
 import SalesSettingsModal from '../components/SalesSettingsModal';
@@ -102,7 +103,7 @@ const ProyectoCard: React.FC<{
       ) : (
         <View style={styles.proyectoStats}>
           <Text style={styles.statText}>{t.impressions}: {estadisticas.cantidadImpresiones}</Text>
-          <Text style={styles.statText}>{t.totalCost}: ${estadisticas.costoTotal.toFixed(2)} MXN</Text>
+          <Text style={styles.statText}>{t.totalCost}: ${estadisticas.costoTotal.toFixed(2)} ${getCurrency(lang)}</Text>
           <Text style={styles.statText}>
             {t.materialsUsed}: {estadisticas.materiales.join(', ') || '-'}
           </Text>
@@ -250,14 +251,14 @@ const ProyectoCard: React.FC<{
                   const costoProduccion = estadisticas.costoTotal;
                   const ganancia = precio - costoProduccion;
                   return ganancia.toFixed(2);
-                })()} MXN
+                })()} ${getCurrency(lang)}
               </Text>
             </View>
             
             {/* Información de costos */}
             <View style={styles.costosInfoContainer}>
               <Text style={styles.costosInfoText}>
-                <Text style={styles.costosInfoLabel}>{t.productionCost}</Text> ${estadisticas.costoTotal.toFixed(2)} MXN
+                <Text style={styles.costosInfoLabel}>{t.productionCost}</Text> ${estadisticas.costoTotal.toFixed(2)} ${getCurrency(lang)}
               </Text>
               {(() => {
                 const precio = parseFloat(precioVentaInput || '0');
@@ -292,11 +293,11 @@ const ProyectoCard: React.FC<{
               </Text>
               <Text style={styles.saleDetailText}>
                 <Ionicons name="cash-outline" size={14} color="#ffd600" />
-                {' '}${proyecto.precioVenta || '0.00'} MXN
+                {' '}${proyecto.precioVenta || '0.00'} ${getCurrency(lang)}
               </Text>
               <Text style={styles.saleDetailText}>
                 <Ionicons name="trending-up-outline" size={14} color="#00e676" />
-                {' '}{t.profit}: ${proyecto.ganancia || '0.00'} MXN
+                {' '}{t.profit}: ${proyecto.ganancia || '0.00'} ${getCurrency(lang)}
               </Text>
               {proyecto.categoriaVenta && (
                 <Text style={styles.saleDetailText}>
@@ -318,7 +319,7 @@ const ProyectoCard: React.FC<{
               <View style={styles.chipsContainer}>
                 {/* Sección de Categorías */}
                 <View style={styles.chipSection}>
-                  <Text style={styles.chipSectionLabel}>Categoría:</Text>
+                  <Text style={styles.chipSectionLabel}>{t.category}:</Text>
                   <View style={styles.chipsRow}>
                     {categorias.map((categoria, index) => (
                       <TouchableOpacity
@@ -349,7 +350,7 @@ const ProyectoCard: React.FC<{
                 
                 {/* Sección de Clientes */}
                 <View style={styles.chipSection}>
-                  <Text style={styles.chipSectionLabel}>Cliente:</Text>
+                  <Text style={styles.chipSectionLabel}>{t.client}:</Text>
                   <View style={styles.chipsRow}>
                     {clientes.map((cliente, index) => (
                       <TouchableOpacity
@@ -1109,7 +1110,7 @@ const PrintScreen: React.FC = () => {
                     <View style={styles.materialInfoGrid}>
                       <Text style={styles.materialInfoLabel}>{t.unitPrice}:</Text>
                       <Text style={styles.materialInfoValue}>
-                        ${calculo.filamento?.precioBobina || '0'} MXN
+                        ${calculo.filamento?.precioBobina || '0'} ${getCurrency(lang)}
                       </Text>
                       <Text style={styles.materialInfoLabel}>{t.totalQuantity}:</Text>
                       <Text style={styles.materialInfoValue}>
@@ -1150,7 +1151,7 @@ const PrintScreen: React.FC = () => {
                       </Text>
                       <Text style={styles.materialInfoLabel}>{t.materialCost}:</Text>
                       <Text style={styles.materialInfoValue}>
-                        ${calculo.filamento?.costoMaterialSolo || '0'} MXN
+                        ${calculo.filamento?.costoMaterialSolo || '0'} ${getCurrency(lang)}
                       </Text>
                     </View>
                   </View>
@@ -1186,7 +1187,7 @@ const PrintScreen: React.FC = () => {
                           <View style={styles.materialInfoGrid}>
                             <Text style={styles.materialInfoLabel}>{t.unitPrice}:</Text>
                             <Text style={styles.materialInfoValue}>
-                              ${material.precioBobina || material.precio || '0'} MXN
+                              ${material.precioBobina || material.precio || '0'} ${getCurrency(lang)}
                             </Text>
                             <Text style={styles.materialInfoLabel}>{t.totalQuantity}:</Text>
                             <Text style={styles.materialInfoValue}>
@@ -1258,7 +1259,7 @@ const PrintScreen: React.FC = () => {
                                     }
                                 }
                                 return costo.toFixed(2);
-                              })()} MXN
+                              })()} ${getCurrency(lang)}
                             </Text>
                           </View>
                         </View>
@@ -1285,22 +1286,22 @@ const PrintScreen: React.FC = () => {
                       )}
           
           <Text style={[styles.infoValue, {color: '#00e676'}]}>
-            {`${t.materials}: $${calculo.filamento?.costoMaterialSolo || '0'} MXN`}
+            {`${t.materials}: $${calculo.filamento?.costoMaterialSolo || '0'} ${getCurrency(lang)}`}
           </Text>
           <Text style={[styles.infoValue, {color: '#ffd600'}]}>
-            {`${t.laborCost}: $${calculo.manoObra?.costoTotalManoObra || '0'} MXN`}
+            {`${t.laborCost}: $${calculo.manoObra?.costoTotalManoObra || '0'} ${getCurrency(lang)}`}
           </Text>
           <Text style={[styles.infoValue, {color: '#ff9100'}]}>
-            {`${t.extraMaterials}: $${calculo.avanzados?.totalMaterialesExtra || '0'} MXN`}
+            {`${t.extraMaterials}: $${calculo.avanzados?.totalMaterialesExtra || '0'} ${getCurrency(lang)}`}
           </Text>
           <Text style={[styles.infoValue, {color: '#40c4ff'}]}>
-            {`${t.light}: $${calculo.avanzados?.costoLuz || '0'} MXN`}
+            {`${t.light}: $${calculo.avanzados?.costoLuz || '0'} ${getCurrency(lang)}`}
           </Text>
           <Text style={[styles.infoValue, {color: '#fff'}]}>
-            {`${t.productionCost}: $${costoProduccion} MXN`}
+            {`${t.productionCost}: $${costoProduccion} ${getCurrency(lang)}`}
           </Text>
           <Text style={[styles.infoValue, {color: '#69f0ae', fontWeight: 'bold'}]}>
-            {`${t.totalCost}: $${total} MXN`}
+            {`${t.totalCost}: $${total} ${getCurrency(lang)}`}
           </Text>
           {/* Información de Venta */}
           {calculo.estadoVenta && (
@@ -1327,11 +1328,11 @@ const PrintScreen: React.FC = () => {
                   </Text>
                   <Text style={styles.saleDetailText}>
                     <Ionicons name="cash-outline" size={14} color="#ffd600" />
-                    {' '}${calculo.precioVenta} MXN
+                    {' '}${calculo.precioVenta} ${getCurrency(lang)}
                   </Text>
                   <Text style={styles.saleDetailText}>
                     <Ionicons name="trending-up-outline" size={14} color="#00e676" />
-                    {' '}{t.profit}: ${calculo.ganancia} MXN
+                    {' '}{t.profit}: ${calculo.ganancia} ${getCurrency(lang)}
                   </Text>
                   {calculo.categoriaVenta && (
                     <Text style={styles.saleDetailText}>
@@ -1421,14 +1422,14 @@ const PrintScreen: React.FC = () => {
                         const costoProduccion = parseFloat(calculo.costoTotal || '0');
                         const ganancia = precio - costoProduccion;
                         return ganancia.toFixed(2);
-                      })()} MXN
+                      })()} ${getCurrency(lang)}
                     </Text>
                   </View>
                   
                   {/* Información de costos */}
                   <View style={styles.costosInfoContainer}>
                     <Text style={styles.costosInfoText}>
-                      <Text style={styles.costosInfoLabel}>{t.productionCost}</Text> ${calculo.costoTotal || '0.00'} MXN
+                      <Text style={styles.costosInfoLabel}>{t.productionCost}</Text> ${calculo.costoTotal || '0.00'} ${getCurrency(lang)}
                     </Text>
                     {(() => {
                       const precio = parseFloat(precioVentaInput[calculo.id] || '0');
@@ -1453,7 +1454,7 @@ const PrintScreen: React.FC = () => {
                   <View style={styles.chipsContainer}>
                     {/* Sección de Categorías */}
                     <View style={styles.chipSection}>
-                      <Text style={styles.chipSectionLabel}>Categoría:</Text>
+                      <Text style={styles.chipSectionLabel}>{t.category}:</Text>
                       <View style={styles.chipsRow}>
                         {categorias.map((categoria, index) => (
                           <TouchableOpacity
@@ -1484,7 +1485,7 @@ const PrintScreen: React.FC = () => {
                     
                     {/* Sección de Clientes */}
                     <View style={styles.chipSection}>
-                      <Text style={styles.chipSectionLabel}>Cliente:</Text>
+                      <Text style={styles.chipSectionLabel}>{t.client}:</Text>
                       <View style={styles.chipsRow}>
                         {clientes.map((cliente, index) => (
                           <TouchableOpacity
@@ -1734,7 +1735,7 @@ const PrintScreen: React.FC = () => {
                     style={{ marginRight: 6 }}
                   />
                   <Text style={[styles.filterButtonText, filtroEstado === 'todos' && styles.filterButtonTextActive]}>
-                    Todos
+                    {t.all}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -1836,7 +1837,7 @@ const PrintScreen: React.FC = () => {
                     style={{ marginRight: 6 }}
                   />
                   <Text style={[styles.filterButtonText, filtroEstado === 'todos' && styles.filterButtonTextActive]}>
-                    Todos
+                    {t.all}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -3055,4 +3056,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PrintScreen; 
+export default PrintScreen;

@@ -6,9 +6,10 @@ import { auth, app } from '../api/firebase';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialList } from '../components/Material';
-import { useMateriales } from '../hooks';
+import { useMateriales } from '../hooks/useMateriales';
 import { useCostCalculator } from '../hooks/useCostCalculator';
 import { useLanguage } from '../utils/LanguageProvider';
+import { getCurrency } from '../utils';
 import translations from '../utils/locales';
 import { limpiarPrecio } from '../utils/materialUtils';
 
@@ -20,6 +21,291 @@ type Proyecto = {
   nombre: string;
   fechaCreacion?: string;
   archivado?: boolean;
+};
+
+// MAPEO DE TRADUCCIÓN PARA SUBTIPOS EN UI (definido globalmente)
+const SUBTIPOS_FILAMENTO_UI = {
+  'Normal': 'Normal',
+  'Silk': 'Silk',
+  'Plus': 'Plus',
+  'Madera': 'Wood',
+  'Brillante': 'Shiny',
+  'Mate': 'Matte',
+  'Flexible': 'Flexible',
+  'Glow': 'Glow',
+  'Metal': 'Metal',
+  'Transparente': 'Transparent',
+  'Multicolor': 'Multicolor',
+  'Reciclado': 'Recycled',
+  'Carbono': 'Carbon',
+  'Alta temperatura': 'High Temperature',
+  'Ignífugo': 'Fireproof',
+  'Vidrio': 'Glass',
+  '85A': '85A',
+  '95A': '95A',
+};
+
+// MAPEO DE TRADUCCIÓN PARA TIPOS EN UI (definido globalmente)
+const TIPOS_FILAMENTO_UI = {
+  'PLA': 'PLA',
+  'ABS': 'ABS',
+  'PETG': 'PETG',
+  'TPU': 'TPU',
+  'Nylon': 'Nylon',
+  'PC': 'PC',
+  'HIPS': 'HIPS',
+  'ASA': 'ASA',
+  'PVA': 'PVA',
+  'PP': 'PP',
+  'Wood': 'Wood',
+  'Metal': 'Metal',
+  'Flexible': 'Flexible',
+};
+
+// MAPEO DE TRADUCCIÓN PARA TIPOS DE RESINA EN UI (definido globalmente)
+const TIPOS_RESINA_UI = {
+  'Estándar': 'Standard',
+  'Tough (tipo ABS)': 'Tough',
+  'Flexible': 'Flexible Resin',
+  'Alta temperatura': 'High Temp Resin',
+  'Dental / Biocompatible': 'Dental',
+  'Transparente': 'Transparent Resin',
+  'Rápida': 'Fast',
+  'Especiales': 'Special',
+};
+
+// MAPEO DE TRADUCCIÓN PARA TIPOS DE PINTURA EN UI (definido globalmente)
+const TIPOS_PINTURA_UI = {
+  'Acrílica': 'Acrylic',
+  'Esmalte': 'Enamel',
+  'Spray': 'Spray',
+  'Óleo': 'Oil',
+  'Vinílica': 'Vinyl',
+  'Acuarela': 'Watercolor',
+};
+
+// MAPEO DE TRADUCCIÓN PARA COLORES EN UI (definido globalmente)
+const COLORES_UI = {
+  'Negro': 'Black',
+  'Blanco': 'White',
+  'Rojo': 'Red',
+  'Rojo Oscuro': 'Dark Red',
+  'Rosa': 'Pink',
+  'Rosa Claro': 'Light Pink',
+  'Naranja': 'Orange',
+  'Naranja Claro': 'Light Orange',
+  'Amarillo': 'Yellow',
+  'Amarillo Claro': 'Light Yellow',
+  'Verde': 'Green',
+  'Verde Claro': 'Light Green',
+  'Verde Azulado': 'Teal',
+  'Azul': 'Blue',
+  'Azul Claro': 'Light Blue',
+  'Azul Oscuro': 'Dark Blue',
+  'Índigo': 'Indigo',
+  'Morado': 'Purple',
+  'Morado Claro': 'Light Purple',
+  'Violeta': 'Violet',
+  'Gris': 'Gray',
+  'Gris Claro': 'Light Gray',
+  'Gris Oscuro': 'Dark Gray',
+  'Marrón': 'Brown',
+  'Marrón Claro': 'Light Brown',
+  'Beige': 'Beige',
+  'Transparente': 'Transparent',
+  'Oro': 'Gold',
+  'Plata': 'Silver',
+  'Cobre': 'Copper',
+  'Bronce': 'Bronze',
+  'Turquesa': 'Turquoise',
+  'Coral': 'Coral',
+  'Lavanda': 'Lavender',
+  'Menta': 'Mint',
+  'Melocotón': 'Peach',
+  'Lima': 'Lime',
+  'Cian': 'Cyan',
+  'Magenta': 'Magenta',
+};
+
+// Funciones de traducción globales
+const getSubtipoTraducido = (subtipo: string, t?: any) => {
+  if (!t) return SUBTIPOS_FILAMENTO_UI[subtipo] || subtipo;
+  
+  const mapping = {
+    'Normal': t.normal,
+    'normal': t.normal,
+    'Silk': t.silk,
+    'Seda': t.silk,
+    'silk': t.silk,
+    'seda': t.silk,
+    'Plus': t.plus,
+    'plus': t.plus,
+    'Madera': t.woodType,
+    'madera': t.woodType,
+    'Wood': t.woodType,
+    'wood': t.woodType,
+    'Brillante': t.shiny,
+    'brillante': t.shiny,
+    'Glossy': t.shiny,
+    'glossy': t.shiny,
+    'Mate': t.matte,
+    'mate': t.matte,
+    'Matte': t.matte,
+    'matte': t.matte,
+    'Flexible': t.flexible,
+    'flexible': t.flexible,
+    'Glow': t.glow,
+    'glow': t.glow,
+    'Metal': t.metal,
+    'metal': t.metal,
+    'Transparente': t.transparent,
+    'transparent': t.transparent,
+    'Transparent': t.transparent,
+    'Multicolor': t.multicolor,
+    'multicolor': t.multicolor,
+    'Reciclado': t.recycled,
+    'reciclado': t.recycled,
+    'Recycled': t.recycled,
+    'recycled': t.recycled,
+    'Carbono': t.carbon,
+    'carbono': t.carbon,
+    'Carbon': t.carbon,
+    'carbon': t.carbon,
+    'Alta temperatura': t.highTemperature,
+    'alta temperatura': t.highTemperature,
+    'High Temperature': t.highTemperature,
+    'high temperature': t.highTemperature,
+    'Ignífugo': t.fireproof,
+    'ignífugo': t.fireproof,
+    'Fire Resistant': t.fireproof,
+    'fire resistant': t.fireproof,
+    'Vidrio': t.glass,
+    'vidrio': t.glass,
+    'Glass': t.glass,
+    'glass': t.glass,
+    '85A': '85A',
+    '95A': '95A',
+  };
+  return mapping[subtipo] || subtipo;
+};
+
+const getTipoTraducido = (tipo: string, t?: any) => {
+  if (!t) return TIPOS_FILAMENTO_UI[tipo] || TIPOS_RESINA_UI[tipo] || TIPOS_PINTURA_UI[tipo] || tipo;
+  
+  const filamentoMapping = {
+    'PLA': t.pla,
+    'ABS': t.abs,
+    'PETG': t.petg,
+    'TPU': t.tpu,
+    'Nylon': t.nylon,
+    'PC': t.pc,
+    'HIPS': t.hips,
+    'ASA': t.asa,
+    'PVA': t.pva,
+    'PP': t.pp,
+    'Madera': t.wood,
+    'Metal': t.metal,
+    'Flexible': t.flexible,
+  };
+  
+  const resinaMapping = {
+    'Estándar': t.standard,
+    'Standard': t.standard,
+    'Tough (tipo ABS)': t.tough,
+    'Flexible': t.flexibleResin,
+    'Alta temperatura': t.highTempResin,
+    'High Temperature': t.highTempResin,
+    'Dental / Biocompatible': t.dental,
+    'Transparente': t.transparentResin,
+    'Transparent': t.transparentResin,
+    'Rápida': t.fast,
+    'Fast': t.fast,
+    'Especiales': t.special,
+    'Special': t.special,
+  };
+  
+  const pinturaMapping = {
+    'Acrílica': t.acrylic,
+    'Acrylic': t.acrylic,
+    'Esmalte': t.enamel,
+    'Enamel': t.enamel,
+    'Spray': t.spray,
+    'Óleo': t.oil,
+    'Oil': t.oil,
+    'Vinílica': t.vinyl,
+    'Vinyl': t.vinyl,
+    'Acuarela': t.watercolor,
+    'Watercolor': t.watercolor,
+  };
+  
+  return filamentoMapping[tipo] || resinaMapping[tipo] || pinturaMapping[tipo] || tipo;
+};
+
+const getColorTraducido = (color: string, t?: any) => {
+  if (!t) return COLORES_UI[color] || color;
+  
+  const mapping = {
+    'Negro': t.black,
+    'Blanco': t.white,
+    'Rojo': t.red,
+    'Rojo Oscuro': t.darkRed,
+    'Rosa': t.pink,
+    'Rosa Claro': t.lightPink,
+    'Naranja': t.orange,
+    'Naranja Claro': t.lightOrange,
+    'Amarillo': t.yellow,
+    'Amarillo Claro': t.lightYellow,
+    'Verde': t.green,
+    'Verde Claro': t.lightGreen,
+    'Verde Azulado': t.teal,
+    'Azul': t.blue,
+    'Azul Claro': t.lightBlue,
+    'Azul Oscuro': t.darkBlue,
+    'Índigo': t.indigo,
+    'Morado': t.purple,
+    'Morado Claro': t.lightPurple,
+    'Violeta': t.violet,
+    'Gris': t.gray,
+    'Gris Claro': t.lightGray,
+    'Gris Oscuro': t.darkGray,
+    'Marrón': t.brown,
+    'Marrón Claro': t.lightBrown,
+    'Beige': t.beige,
+    'Transparente': t.transparentColor,
+    'Oro': t.gold,
+    'Plata': t.silver,
+    'Cobre': t.copper,
+    'Bronce': t.bronze,
+    'Turquesa': t.turquoise,
+    'Coral': t.coral,
+    'Lavanda': t.lavender,
+    'Menta': t.mint,
+    'Melocotón': t.peach,
+    'Lima': t.lime,
+    'Cian': t.cyan,
+    'Magenta': t.magenta,
+  };
+  return mapping[color] || color;
+};
+
+// Añadir función de traducción de categoría al inicio del archivo (después de imports y antes de componentes):
+const getCategoriaTraducida = (categoria, t) => {
+  switch (categoria) {
+    case 'Filamento':
+    case t.filament:
+      return t.filament;
+    case 'Resina':
+    case t.resin:
+      return t.resin;
+    case 'Pintura':
+    case t.paint:
+      return t.paint;
+    case 'Aros de llavero':
+    case t.keychainRings:
+      return t.keychainRings;
+    default:
+      return categoria;
+  }
 };
 
 // Componente para seleccionar materiales múltiples
@@ -67,7 +353,7 @@ const MaterialMultipleSelector: React.FC<{
         <Text style={{ 
           color: materialSeleccionado?.id === mat.id ? '#333' : '#a0a0a0', 
           fontSize: 9 
-        }} numberOfLines={1} ellipsizeMode="tail">{mat.subtipo}</Text>
+        }} numberOfLines={1} ellipsizeMode="tail">{getSubtipoTraducido(mat.subtipo, t)}</Text>
         <View style={{ flexDirection: 'row', marginTop: 2 }}>
           <Text style={{ 
             color: materialSeleccionado?.id === mat.id ? '#333' : '#00e676', 
@@ -296,11 +582,11 @@ const MaterialMultipleSelector: React.FC<{
 
   return (
     <View style={{ marginBottom: 12, padding: 12, backgroundColor: '#222', borderRadius: 8 }}>
-      <Text style={{ color: '#00e676', fontWeight: 'bold', marginBottom: 8 }}>Material {index + 1}</Text>
+      <Text style={{ color: '#00e676', fontWeight: 'bold', marginBottom: 8 }}>{t.material} {index + 1}</Text>
       
       <View style={{ flexDirection: 'column', flexWrap: 'wrap', marginBottom: 8 }}>
         {materialesGuardados.length === 0 ? (
-          <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 10 }}>No hay materiales guardados.</Text>
+          <Text style={{ color: '#a0a0a0', textAlign: 'center', marginVertical: 10 }}>{t.noSavedMaterials}</Text>
         ) : (
           Object.entries(agruparMaterialesPorTipo()).map(([tipo, materiales]) => 
             renderMaterialGroup(tipo, materiales)
@@ -319,12 +605,13 @@ const MaterialMultipleSelector: React.FC<{
             onChangeText={handleCantidadChange}
             onBlur={handleBlur}
             placeholder={getPlaceholderCantidad(materialSeleccionado.categoria)}
+            placeholderTextColor="#aaa"
             keyboardType="numeric"
             maxLength={10}
           />
           
           <View style={{ marginTop: 8 }}>
-            <Text style={{ color: '#fff', fontSize: 11, marginBottom: 4 }}>Información del material:</Text>
+            <Text style={{ color: '#fff', fontSize: 11, marginBottom: 4 }}>{t.materialInfo}</Text>
             
             {(() => {
               const info = getInfoMaterial(materialSeleccionado);
@@ -334,7 +621,7 @@ const MaterialMultipleSelector: React.FC<{
                     <View style={styles.infoDisplayRow}>
                       <Ionicons name="cash-outline" size={14} color="#ffd600" />
                       <Text style={[styles.infoDisplayText, { fontSize: 12 }]}>
-                        ${info.precio} MXN
+                        ${info.precio} ${getCurrency(lang)}
                       </Text>
                     </View>
                   </View>
@@ -357,10 +644,10 @@ const MaterialMultipleSelector: React.FC<{
               {getInfoMaterial(materialSeleccionado).labelCosto}:
             </Text>
             <Text style={{ color: '#00e676', fontSize: 18, fontWeight: 'bold' }}>
-              ${calcularCostoMaterial()} MXN
+              ${calcularCostoMaterial()} ${getCurrency(lang)}
             </Text>
             <Text style={{ color: '#666', fontSize: 10, marginTop: 4 }}>
-              Para {materialSeleccionado[getCampoCantidad(materialSeleccionado.categoria)] || '0'}{getUnidadMaterial(materialSeleccionado.categoria)} utilizados
+              {t.usedAmount.replace('{amount}', materialSeleccionado[getCampoCantidad(materialSeleccionado.categoria)] || '0').replace('{unit}', getUnidadMaterial(materialSeleccionado.categoria))}
             </Text>
           </View>
         </View>
@@ -428,11 +715,12 @@ const CostCalculatorScreen: React.FC = () => {
     { tipo: 'ASA', subtipos: ['Normal'] },
     { tipo: 'PVA', subtipos: ['Normal'] },
     { tipo: 'PP', subtipos: ['Normal'] },
-    { tipo: 'Wood', subtipos: ['Normal'] },
     { tipo: 'Metal', subtipos: ['Normal'] },
     { tipo: 'Flexible', subtipos: ['Normal'] },
     { tipo: 'Conductivo', subtipos: ['Normal'] },
   ];
+
+
 
   // El hook useMateriales ya maneja la carga automática de materiales
 
@@ -719,7 +1007,7 @@ const CostCalculatorScreen: React.FC = () => {
       // Restar gramos utilizados de los materiales
       await actualizarCantidadesMateriales();
       
-      showCustomAlert('¡Cálculo guardado!', `El cálculo "${calculo.nombre}" se guardó exitosamente.\n\nTotal: $${getTotal()} MXN\n\nPuedes consultar este cálculo en el historial de impresiones.`, 'success');
+      showCustomAlert('¡Cálculo guardado!', `El cálculo "${calculo.nombre}" se guardó exitosamente.\n\nTotal: $${getTotal()} ${getCurrency(lang)}\n\nPuedes consultar este cálculo en el historial de impresiones.`, 'success');
       
       // Limpiar formulario
       limpiarFormularioHook();
@@ -1021,7 +1309,7 @@ const CostCalculatorScreen: React.FC = () => {
             value={calculo.nombre}
             onChangeText={(text) => setCalculo(prev => ({ ...prev, nombre: text }))}
             placeholder={t.projectNameExample}
-            placeholderTextColor="#666"
+            placeholderTextColor="#aaa"
           />
           {!calculo.nombre.trim() && (
             <Text style={styles.requiredMessage}>{t.projectNameRequired}</Text>
@@ -1199,9 +1487,9 @@ const CostCalculatorScreen: React.FC = () => {
                         marginRight: 12,
                       }} />
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.materialName}>{material.nombre}</Text>
+                        <Text style={styles.materialName}>{material.nombre} ({getCategoriaTraducida(material.categoria, t)} - {getSubtipoTraducido(material.subtipo, t)})</Text>
                         <Text style={styles.materialInfoDetails}>
-                          {material.tipo} - {material.subtipo}
+                          {getTipoTraducido(material.tipo, t)} - {getSubtipoTraducido(material.subtipo, t)}
                         </Text>
                         <Text style={styles.materialInfoDetails}>
                           {(() => {
@@ -1245,7 +1533,7 @@ const CostCalculatorScreen: React.FC = () => {
                             default:
                                 return limpiarPrecio(material.precioBobina || material.precio || '0');
                             }
-                          })()} MXN
+                          })()} ${getCurrency(lang)}
                         </Text>
                         
                         {/* Checkbox individual para descuento de este material */}
@@ -1290,6 +1578,7 @@ const CostCalculatorScreen: React.FC = () => {
                 value={calculo.detallesImpresion.relleno}
                 onChangeText={(text) => handleDetallesImpresionChange('relleno', text)}
                 placeholder={t.fillExample}
+                placeholderTextColor="#aaa"
                 keyboardType="numeric"
               />
               
@@ -1299,6 +1588,7 @@ const CostCalculatorScreen: React.FC = () => {
                 value={calculo.detallesImpresion.tiempoImpresion}
                 onChangeText={(text) => handleDetallesImpresionChange('tiempoImpresion', text)}
                 placeholder={t.timeExample}
+                placeholderTextColor="#aaa"
                 keyboardType="numeric"
               />
               
@@ -1308,6 +1598,7 @@ const CostCalculatorScreen: React.FC = () => {
                 value={calculo.detallesImpresion.temperatura}
                 onChangeText={(text) => handleDetallesImpresionChange('temperatura', text)}
                 placeholder={t.temperatureExample}
+                placeholderTextColor="#aaa"
                 keyboardType="numeric"
               />
               
@@ -1317,6 +1608,7 @@ const CostCalculatorScreen: React.FC = () => {
                 value={calculo.detallesImpresion.velocidad}
                 onChangeText={(text) => handleDetallesImpresionChange('velocidad', text)}
                 placeholder={t.speedExample}
+                placeholderTextColor="#aaa"
                 keyboardType="numeric"
               />
               
@@ -1326,6 +1618,7 @@ const CostCalculatorScreen: React.FC = () => {
                 value={calculo.detallesImpresion.alturaCapa}
                 onChangeText={(text) => handleDetallesImpresionChange('alturaCapa', text)}
                 placeholder={t.layerHeightExample}
+                placeholderTextColor="#aaa"
                 keyboardType="numeric"
               />
               
@@ -1335,7 +1628,7 @@ const CostCalculatorScreen: React.FC = () => {
                 value={calculo.detallesImpresion.notas}
                 onChangeText={(text) => handleDetallesImpresionChange('notas', text)}
                 placeholder={t.notesExample}
-                placeholderTextColor="#666"
+                placeholderTextColor="#aaa"
                 multiline
               />
             </>
@@ -1381,7 +1674,7 @@ const CostCalculatorScreen: React.FC = () => {
                             <Text style={[
                               styles.pastillaTexto,
                               calculo.filamento.subtipo === sub ? styles.pastillaTextoSeleccionada : null
-                            ]}>{sub}</Text>
+                            ]}>{getSubtipoTraducido(sub)}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
@@ -1401,7 +1694,7 @@ const CostCalculatorScreen: React.FC = () => {
                         <Text style={[
                           styles.pastillaTexto,
                           calculo.filamento.tipo === tipo ? styles.pastillaTextoSeleccionada : null
-                        ]}>{tipo}</Text>
+                        ]}>{getTipoTraducido(tipo)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -1417,7 +1710,7 @@ const CostCalculatorScreen: React.FC = () => {
                 <View style={styles.infoDisplayRow}>
                   <Ionicons name="cash-outline" size={16} color="#ffd600" />
                   <Text style={styles.infoDisplayText}>
-                    ${calculo.filamento.precioBobina || '0.00'} MXN
+                    ${calculo.filamento.precioBobina || '0.00'} ${getCurrency(lang)}
                   </Text>
                 </View>
               </View>
@@ -1533,13 +1826,14 @@ const CostCalculatorScreen: React.FC = () => {
                   return t.gramsExample;
               }
             })()) : t.notApplicableForThisMaterial}
+            placeholderTextColor="#aaa"
             keyboardType="numeric"
             editable={descontarCantidad}
           />
           
           <View style={styles.resultContainer}>
                 <Text style={styles.resultLabel}>{t.totalMaterialCost}</Text>
-            <Text style={styles.resultValue}>${calculo.filamento.costoFilamento} MXN</Text>
+            <Text style={styles.resultValue}>${calculo.filamento.costoFilamento}{getCurrency(lang)}</Text>
                 <Text style={styles.detailText}>
                   {t.for} {(() => {
                     const mat = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id);
@@ -1564,7 +1858,7 @@ const CostCalculatorScreen: React.FC = () => {
                     {/* Información del Material Seleccionado */}
                     {!esMultifilamento && calculo.materialSeleccionado.id && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>MATERIAL SELECCIONADO</Text>
+            <Text style={styles.sectionTitle}>{t.selectedMaterial}</Text>
             <View style={styles.materialInfoContainer}>
               <View style={{
                 width: 20,
@@ -1578,10 +1872,10 @@ const CostCalculatorScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                   <Text style={styles.materialInfoName}>{calculo.materialSeleccionado.nombre}</Text>
                   <Text style={styles.materialInfoDetails}>
-                  {calculo.materialSeleccionado.tipo} - {calculo.materialSeleccionado.subtipo}
+                  {getTipoTraducido(calculo.materialSeleccionado.tipo, t)} - {getSubtipoTraducido(calculo.materialSeleccionado.subtipo, t)}
                 </Text>
                   <Text style={styles.materialInfoDetails}>
-                  Color: {calculo.materialSeleccionado.color || 'No especificado'}
+                  {t.color}: {getColorTraducido(calculo.materialSeleccionado.color, t) || t.notSpecified}
                   </Text>
                   {/* Información contextual del material seleccionado */}
                   {(() => {
@@ -1590,7 +1884,7 @@ const CostCalculatorScreen: React.FC = () => {
                       return (
                         <View style={{ marginTop: 4 }}>
                           <Text style={[styles.materialInfoDetails, { color: '#00e676' }]}>
-                            Cantidad restante: {(typeof mat.cantidadRestante !== 'undefined' ? mat.cantidadRestante : mat.cantidad || '0')}{(() => {
+                            {t.remainingQuantity}: {(typeof mat.cantidadRestante !== 'undefined' ? mat.cantidadRestante : mat.cantidad || '0')}{(() => {
                               const categoria = mat.categoria || 'Filamento';
                               switch (categoria) {
                                 case 'Filamento':
@@ -1600,12 +1894,12 @@ const CostCalculatorScreen: React.FC = () => {
                                   return 'ml';
                                 case 'Aros de llavero':
                                 default:
-                                  return ' unidades';
+                                  return ' ' + t.units;
                               }
                             })()}
                           </Text>
                           <Text style={[styles.materialInfoDetails, { color: '#ffd600' }]}>
-                            Precio: ${(() => {
+                            {t.price}: ${(() => {
                               const categoria = mat.categoria || 'Filamento';
                               switch (categoria) {
                                 case 'Pintura':
@@ -1620,7 +1914,7 @@ const CostCalculatorScreen: React.FC = () => {
                                   const precioTotal = precioPorBobina * cantidadBobinas;
                                   return precioTotal.toString();
                               }
-                            })()} MXN
+                            })()} {t.currency}
                           </Text>
                         </View>
                       );
@@ -1635,12 +1929,12 @@ const CostCalculatorScreen: React.FC = () => {
           {/* Botón de opciones avanzadas */}
           <View style={styles.section}>
             <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
-              <Text style={styles.sectionTitle}>OPCIONES AVANZADAS</Text>
+              <Text style={styles.sectionTitle}>{t.advancedOptions}</Text>
               <TouchableOpacity
                 style={styles.advancedToggleBtn} 
                 onPress={() => setMostrarAvanzado(!mostrarAvanzado)}
               >
-                <Text style={styles.advancedToggleText}>{mostrarAvanzado ? 'Ocultar' : 'Mostrar'}</Text>
+                <Text style={styles.advancedToggleText}>{mostrarAvanzado ? t.hide : t.show}</Text>
               </TouchableOpacity>
           </View>
         </View>
@@ -1648,82 +1942,88 @@ const CostCalculatorScreen: React.FC = () => {
         {/* Opciones avanzadas */}
         {mostrarAvanzado && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>COSTOS AVANZADOS</Text>
-            <Text style={styles.label}>Otros materiales (MXN)</Text>
+            <Text style={styles.sectionTitle}>{t.advancedCosts}</Text>
+            <Text style={styles.label}>{t.otherMaterials}</Text>
             <TextInput
               style={styles.input}
               value={calculo.avanzados.otrosMateriales}
               onChangeText={(text) => handleAvanzadoChange('otrosMateriales', text)}
-              placeholder="Ej: 2.00"
+              placeholder={t.exampleOtherMaterials}
+              placeholderTextColor="#aaa"
               keyboardType="numeric"
             />
-            <Text style={styles.label}>Consumo de luz (kWh)</Text>
+            <Text style={styles.label}>{t.powerConsumption}</Text>
             <TextInput
               style={styles.input}
               value={calculo.avanzados.consumoKwh}
               onChangeText={(text) => handleAvanzadoChange('consumoKwh', text)}
-              placeholder="Ej: 0.5"
+              placeholder={t.examplePowerConsumption}
+              placeholderTextColor="#aaa"
               keyboardType="numeric"
             />
-            <Text style={styles.label}>Costo por kWh (MXN)</Text>
+            <Text style={styles.label}>{t.costPerKwh}</Text>
             <TextInput
               style={styles.input}
               value={calculo.avanzados.costoKwh}
               onChangeText={(text) => handleAvanzadoChange('costoKwh', text)}
-              placeholder="Ej: 2.5"
+              placeholder={t.exampleCostPerKwh}
+              placeholderTextColor="#aaa"
               keyboardType="numeric"
             />
 
-            <Text style={styles.label}>Horas de impresion (horas)</Text>
+            <Text style={styles.label}>{t.printingHours}</Text>
             <TextInput
               style={styles.input}
               value={calculo.avanzados.horasimpresion}
               onChangeText={(text) => handleAvanzadoChange('horasimpresion', text)}
-              placeholder="Ej: 60"
+              placeholder={t.examplePrintingHours}
+              placeholderTextColor="#aaa"
               keyboardType="numeric"
             />
 
             <TouchableOpacity style={styles.calculateButton} onPress={calcularAvanzado}>
-              <Text style={styles.calculateButtonText}>Calcular avanzados</Text>
+              <Text style={styles.calculateButtonText}>{t.calculateAdvanced}</Text>
             </TouchableOpacity>
             <View style={styles.resultContainer}>
-              <Text style={styles.resultLabel}>Total materiales extra: <Text style={styles.costoBasico}>${calculo.avanzados.totalMaterialesExtra} MXN</Text></Text>
-              <Text style={styles.resultLabel}>Costo de luz: <Text style={styles.costoBasico}>${calculo.avanzados.costoLuz} MXN</Text></Text>
+              <Text style={styles.resultLabel}>{t.totalExtraMaterials} <Text style={styles.costoBasico}>${calculo.avanzados.totalMaterialesExtra} {t.currency}</Text></Text>
+              <Text style={styles.resultLabel}>{t.powerCost} <Text style={styles.costoBasico}>${calculo.avanzados.costoLuz} {t.currency}</Text></Text>
             </View>
           </View>
         )}
 
         {/* Sección de Mano de Obra */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>CÁLCULO DE MANO DE OBRA</Text>
-          <Text style={styles.subsectionTitle}>Preparación de la impresión</Text>
-          <Text style={styles.label}>Tiempo (horas)</Text>
+          <Text style={styles.sectionTitle}>{t.laborCalculation}</Text>
+          <Text style={styles.subsectionTitle}>{t.preparationPrint}</Text>
+          <Text style={styles.label}>{t.timeInHours}</Text>
           <TextInput
             style={styles.input}
             value={calculo.manoObra.preparacionTiempo}
             onChangeText={(text) => handleManoObraChange('preparacionTiempo', text)}
-            placeholder="Ej: 2"
+            placeholder={t.exampleTimeInHours}
+            placeholderTextColor="#aaa"
             keyboardType="numeric"
           />
-          <Text style={styles.label}>Coste por hora (MXN)</Text>
+          <Text style={styles.label}>{t.costPerHour}</Text>
           <TextInput
             style={styles.input}
             value={calculo.manoObra.preparacionCosto}
             onChangeText={(text) => handleManoObraChange('preparacionCosto', text)}
-            placeholder="Ej: 150.00"
+            placeholder={t.exampleCostPerHour}
+            placeholderTextColor="#aaa"
             keyboardType="numeric"
           />
           <TouchableOpacity style={styles.calculateButton} onPress={calcularManoObra}>
-            <Text style={styles.calculateButtonText}>Calcular mano de obra</Text>
+            <Text style={styles.calculateButtonText}>{t.calculateLabor}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Resumen total de costos */}
         <View style={[styles.section, styles.totalSection]}>
-          <Text style={styles.sectionTitle}>RESUMEN DE COSTOS</Text>
+          <Text style={styles.sectionTitle}>{t.costSummary}</Text>
           {/* Barra de porcentaje de ganancia */}
           <View style={{marginBottom: 20, flexDirection: 'row', alignItems: 'center'}}>
-            <Text style={{color: '#fff', fontSize: 15, marginRight: 8}}>Porcentaje de ganancia:</Text>
+            <Text style={{color: '#fff', fontSize: 15, marginRight: 8}}>{t.profitPercentage}</Text>
             <TextInput
               style={{
                 color: '#00e676',
@@ -1754,7 +2054,7 @@ const CostCalculatorScreen: React.FC = () => {
             <View style={styles.summaryMaterialContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <Ionicons name="cube-outline" size={20} color="#00e676" style={{ marginRight: 8 }} />
-                <Text style={styles.summarySectionTitle}>MATERIAL UTILIZADO</Text>
+                <Text style={styles.summarySectionTitle}>{t.usedMaterial}</Text>
               </View>
               <View style={styles.summaryMaterialInfo}>
                 <View style={{
@@ -1767,7 +2067,7 @@ const CostCalculatorScreen: React.FC = () => {
                   marginRight: 8,
                 }} />
                 <Text style={styles.summaryMaterialText}>
-                  {calculo.materialSeleccionado.nombre} ({calculo.materialSeleccionado.tipo} - {calculo.materialSeleccionado.subtipo})
+                  {calculo.materialSeleccionado.nombre} ({getCategoriaTraducida(calculo.materialSeleccionado.categoria, t)} - {getSubtipoTraducido(calculo.materialSeleccionado.subtipo, t)})
                 </Text>
               </View>
               <Text style={styles.summaryDetailText}>
@@ -1778,13 +2078,13 @@ const CostCalculatorScreen: React.FC = () => {
                     
                     switch (categoria) {
                       case 'Pintura':
-                        return `Mililitros utilizados: ${cantidad}ml`;
+                        return `${t.usedMilliliters}: ${cantidad}ml`;
                       case 'Aros de llavero':
-                        return `Cantidad utilizada: ${cantidad} unidades`;
+                        return `${t.usedQuantity}: ${cantidad} ${t.units}`;
                       case 'Filamento':
                       case 'Resina':
                       default:
-                        return `Gramos utilizados: ${cantidad}g`;
+                        return `${t.usedGrams}: ${cantidad}g`;
                     }
                   })()}
               </Text>
@@ -1796,7 +2096,7 @@ const CostCalculatorScreen: React.FC = () => {
               <View style={styles.summaryMaterialContainer}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Ionicons name="cube-outline" size={20} color="#00e676" style={{ marginRight: 8 }} />
-                  <Text style={styles.summarySectionTitle}>MATERIALES UTILIZADOS</Text>
+                  <Text style={styles.summarySectionTitle}>{t.usedMaterials}</Text>
                 </View>
                 {calculo.materialesMultiples.map((material, index) => (
                   material && (
@@ -1812,25 +2112,25 @@ const CostCalculatorScreen: React.FC = () => {
                       }} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.summaryMaterialText}>
-                          {material.nombre} ({material.tipo} - {material.subtipo})
+                          {material.nombre} ({getCategoriaTraducida(material.categoria, t)} - {getSubtipoTraducido(material.subtipo, t)})
                         </Text>
                         <Text style={styles.summaryDetailText}>
                           {(() => {
                             switch (material.categoria) {
                               case 'Pintura':
-                                return `Mililitros utilizados: ${material.cantidadPintura || '0'}ml`;
+                                return `${t.usedMilliliters}: ${material.cantidadPintura || '0'}ml`;
                               case 'Aros de llavero':
-                                return `Cantidad utilizada: ${material.cantidadLlaveros || '0'} unidades`;
+                                return `${t.usedQuantity}: ${material.cantidadLlaveros || '0'} ${t.units}`;
                               case 'Filamento':
                               case 'Resina':
                               default:
-                                return `Gramos utilizados: ${material.gramosUtilizados || '0'}g`;
+                                return `${t.usedGrams}: ${material.gramosUtilizados || '0'}g`;
                             }
                           })()}
                         </Text>
                         {/* Información contextual del material múltiple */}
                         <Text style={[styles.materialInfoDetails, { color: '#00e676' }]}>
-                          Cantidad restante: {(typeof material.cantidadRestante !== 'undefined' ? material.cantidadRestante : material.cantidad || '0')}{(() => {
+                          {t.remainingQuantity}: {(typeof material.cantidadRestante !== 'undefined' ? material.cantidadRestante : material.cantidad || '0')}{(() => {
                             const categoria = material.categoria || 'Filamento';
                             switch (categoria) {
                               case 'Filamento':
@@ -1840,12 +2140,12 @@ const CostCalculatorScreen: React.FC = () => {
                                 return 'ml';
                               case 'Aros de llavero':
                               default:
-                                return ' unidades';
+                                return ' ' + t.units;
                             }
                           })()}
                         </Text>
                         <Text style={[styles.materialInfoDetails, { color: '#ffd600' }]}>
-                          Precio: ${limpiarPrecio(material.precioBobina || material.precio || '0')} MXN
+                          {t.price}: ${limpiarPrecio(material.precioBobina || material.precio || '0')} {t.currency}
                         </Text>
                       </View>
                     </View>
@@ -1859,25 +2159,25 @@ const CostCalculatorScreen: React.FC = () => {
             <View style={styles.summaryDetailsContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
               <Ionicons name="settings-outline" size={20} color="#00e676" style={{ marginRight: 8 }} />
-              <Text style={styles.summarySectionTitle}>CONFIGURACIÓN DE IMPRESIÓN</Text>
+              <Text style={styles.summarySectionTitle}>{t.printConfig}</Text>
             </View>
               {calculo.detallesImpresion.relleno && (
-                <Text style={styles.summaryDetailText}>Relleno: {calculo.detallesImpresion.relleno}%</Text>
+                <Text style={styles.summaryDetailText}>{t.fillPercentage}: {calculo.detallesImpresion.relleno}%</Text>
               )}
               {calculo.detallesImpresion.tiempoImpresion && (
-                <Text style={styles.summaryDetailText}>Tiempo: {calculo.detallesImpresion.tiempoImpresion}h</Text>
+                <Text style={styles.summaryDetailText}>{t.printTime}: {calculo.detallesImpresion.tiempoImpresion}h</Text>
               )}
               {calculo.detallesImpresion.temperatura && (
-                <Text style={styles.summaryDetailText}>Temperatura: {calculo.detallesImpresion.temperatura}°C</Text>
+                <Text style={styles.summaryDetailText}>{t.temperature}: {calculo.detallesImpresion.temperatura}°C</Text>
               )}
               {calculo.detallesImpresion.velocidad && (
-                <Text style={styles.summaryDetailText}>Velocidad: {calculo.detallesImpresion.velocidad} mm/s</Text>
+                <Text style={styles.summaryDetailText}>{t.printSpeed}: {calculo.detallesImpresion.velocidad} mm/s</Text>
               )}
               {calculo.detallesImpresion.alturaCapa && (
-                <Text style={styles.summaryDetailText}>Altura de capa: {calculo.detallesImpresion.alturaCapa}mm</Text>
+                <Text style={styles.summaryDetailText}>{t.layerHeight}: {calculo.detallesImpresion.alturaCapa}mm</Text>
               )}
               {calculo.detallesImpresion.notas && (
-                <Text style={styles.summaryDetailText}>Notas: {calculo.detallesImpresion.notas}</Text>
+                <Text style={styles.summaryDetailText}>{t.additionalNotes}: {calculo.detallesImpresion.notas}</Text>
               )}
             </View>
           )}
@@ -1886,37 +2186,37 @@ const CostCalculatorScreen: React.FC = () => {
           <View style={styles.summaryCostsContainer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
               <Ionicons name="cash-outline" size={20} color="#ffd600" style={{ marginRight: 8 }} />
-              <Text style={styles.summarySectionTitle}>DESGLOSE DE COSTOS</Text>
+              <Text style={styles.summarySectionTitle}>{t.costBreakdown}</Text>
             </View>
-            <Text style={styles.resumenLabel}>Materiales: <Text style={styles.costoBasico}>${esMultifilamento ? calcularCostoMaterialesMultiples().toFixed(2) : calculo.filamento.costoMaterialSolo} MXN</Text></Text>
-            <Text style={styles.resumenLabel}>Mano de obra: <Text style={styles.costoBasico}>${calculo.manoObra.costoTotalManoObra} MXN</Text></Text>
-            <Text style={styles.resumenLabel}>Materiales extra: <Text style={styles.costoBasico}>${calculo.avanzados.totalMaterialesExtra} MXN</Text></Text>
-            <Text style={styles.resumenLabel}>Luz: <Text style={styles.costoBasico}>${calculo.avanzados.costoLuz} MXN</Text></Text>
+            <Text style={styles.resumenLabel}>{t.materials}: <Text style={styles.costoBasico}>${esMultifilamento ? calcularCostoMaterialesMultiples().toFixed(2) : calculo.filamento.costoMaterialSolo} {t.currency}</Text></Text>
+            <Text style={styles.resumenLabel}>{t.labor}: <Text style={styles.costoBasico}>${calculo.manoObra.costoTotalManoObra} {t.currency}</Text></Text>
+            <Text style={styles.resumenLabel}>{t.extraMaterials}: <Text style={styles.costoBasico}>${calculo.avanzados.totalMaterialesExtra} {t.currency}</Text></Text>
+            <Text style={styles.resumenLabel}>{t.power}: <Text style={styles.costoBasico}>${calculo.avanzados.costoLuz} {t.currency}</Text></Text>
+            <Text style={[styles.resumenLabel, {color: '#ff9800'}]}>{t.productionCost}: <Text style={styles.costoProduccion}>${getProduccion()} {t.currency}</Text></Text>
+            <Text style={[styles.resumenLabel, {color: '#00e676'}]}>{t.salePrice}: <Text style={styles.costoVenta}>${getPrecioVenta()} {t.currency}</Text></Text>
           </View>
 
           {/* Totales */}
-          <View style={styles.finalTotalsContainer}>
-                            <Text style={[styles.resumenLabel, {color: '#ff9800'}]}>Costo de producción: <Text style={styles.costoProduccion}>${getProduccion()} MXN</Text></Text>
-            <Text style={[styles.resumenLabel, {color: '#00e676'}]}>Precio de venta: <Text style={styles.costoVenta}>${getPrecioVenta()} MXN</Text></Text>
-          </View>
+          
+          
         </View>
 
         <TouchableOpacity style={styles.saveButton} onPress={guardarEnBaseDeDatos}>
-          <Text style={styles.saveButtonText}>GUARDAR CÁLCULO</Text>
+          <Text style={styles.saveButtonText}>{t.saveCalculation}</Text>
         </TouchableOpacity>
 
         {/* Botón para registrar fallo de impresión */}
                         <TouchableOpacity style={[styles.saveButton, { backgroundColor: '#d32f2f', marginTop: 10 }]} onPress={async () => {
           if (!calculo.nombre.trim()) {
-            showCustomAlert('Error', 'Por favor ingresa un nombre para el cálculo', 'error');
+            showCustomAlert('Error', t.projectNameRequired, 'error');
             return;
           }
           const user = auth.currentUser;
           if (!user) {
-            showCustomAlert('Error', 'Debes iniciar sesión para guardar cálculos', 'error');
+            showCustomAlert('Error', t.loginRequiredToSave, 'error');
             return;
           }
-          showCustomAlert('Guardando', 'Registrando fallo...', 'info');
+          showCustomAlert(t.saving, t.registeringFailure, 'info');
           try {
             const fecha = new Date();
             const fechaFormateada = fecha.toLocaleDateString('es-ES', {
@@ -1938,7 +2238,7 @@ const CostCalculatorScreen: React.FC = () => {
               } else {
             await addDoc(collection(db, 'usuarios', user.uid, 'calculos'), nuevoCalculo);
               }
-            showCustomAlert('Impresión fallida', `El fallo de impresión fue registrado.`, 'error');
+            showCustomAlert(t.printFailure, t.printFailureRegistered, 'error');
             // Limpiar el formulario después de guardar
             setCalculo({
               nombre: '',
@@ -1988,10 +2288,10 @@ const CostCalculatorScreen: React.FC = () => {
             setMaterialSeleccionado('');
             setMostrarDetallesImpresion(false);
           } catch (error) {
-            showCustomAlert('Error', 'No se pudo registrar el fallo. Intenta de nuevo.', 'error');
+            showCustomAlert('Error', t.failureRegistrationError, 'error');
           }
         }}>
-          <Text style={[styles.saveButtonText, { color: '#fff' }]}>REGISTRAR FALLO</Text>
+          <Text style={[styles.saveButtonText, { color: '#fff' }]}>{t.registerFailure}</Text>
         </TouchableOpacity>
 
         {/* Modal de alerta personalizada para web */}
@@ -2021,7 +2321,7 @@ const CostCalculatorScreen: React.FC = () => {
               >
                 <Text style={[
                   styles.alertButtonText,
-                  alertType === 'success' ? { color: '#222' } : null,
+                  alertType === 'success' ? { color: '#fff' } : null,
                   alertType === 'error' ? { color: '#fff' } : null,
                   alertType === 'info' ? { color: '#fff' } : null,
                 ]}>OK</Text>
@@ -2038,17 +2338,17 @@ const CostCalculatorScreen: React.FC = () => {
           >
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
               <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350 }}>
-                <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Nuevo proyecto</Text>
+                <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{t.newProject}</Text>
                 <TextInput
                   style={{ backgroundColor: '#222', color: '#fff', borderRadius: 8, padding: 12, fontSize: 16, borderWidth: 1, borderColor: '#333', marginBottom: 12 }}
                   value={nuevoProyectoNombre}
                   onChangeText={setNuevoProyectoNombre}
-                  placeholder="Nombre del proyecto"
-                  placeholderTextColor="#888"
+                  placeholder={t.projectName}
+                  placeholderTextColor="#bbb"
                 />
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
                   <TouchableOpacity onPress={() => setCrearProyectoModal(false)} style={{ backgroundColor: '#a0a0a0', borderRadius: 8, padding: 10, marginRight: 8 }}>
-                    <Text style={{ color: '#222' }}>Cancelar</Text>
+                    <Text style={{ color: '#fff' }}>{t.cancel}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={async () => {
@@ -2078,7 +2378,7 @@ const CostCalculatorScreen: React.FC = () => {
                     style={{ backgroundColor: '#00e676', borderRadius: 8, padding: 10 }}
                     disabled={!nuevoProyectoNombre.trim()}
                   >
-                    <Text style={{ color: '#222', fontWeight: 'bold' }}>Crear</Text>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t.create}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2093,16 +2393,16 @@ const CostCalculatorScreen: React.FC = () => {
           >
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
               <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350, borderColor: '#ffd600', borderWidth: 2 }}>
-                <Text style={{ color: '#ffd600', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>⧉ Archivar proyecto</Text>
+                <Text style={{ color: '#ffd600', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>⧉ {t.archiveProject}</Text>
                 <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>
-                  ¿Estás seguro de que quieres archivar el proyecto "{proyectoAEliminar?.nombre}"?
+                  {t.archiveProjectConfirm.replace('{project}', proyectoAEliminar?.nombre || '')}
                 </Text>
                 <Text style={{ color: '#a0a0a0', fontSize: 14, marginBottom: 20 }}>
-                  El proyecto no aparecerá más en la calculadora, pero podrás consultarlo o desarchivarlo desde el historial de impresiones.
+                  {t.archiveProjectInfo}
                 </Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
                   <TouchableOpacity onPress={() => setModalEliminarProyecto(false)} style={{ backgroundColor: '#a0a0a0', borderRadius: 8, padding: 10, marginRight: 8 }}>
-                    <Text style={{ color: '#222' }}>Cancelar</Text>
+                    <Text style={{ color: '#fff' }}>{t.cancel}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={async () => {
@@ -2128,7 +2428,7 @@ const CostCalculatorScreen: React.FC = () => {
                     }}
                     style={{ backgroundColor: '#ffd600', borderRadius: 8, padding: 10 }}
                   >
-                    <Text style={{ color: '#222', fontWeight: 'bold' }}>Archivar</Text>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t.archive}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2269,7 +2569,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   saveButtonText: {
-    color: 'black',
+    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -2498,7 +2798,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   toggleButtonTextActive: {
-    color: '#222',
+    color: '#fff',
   },
   quantityButton: {
     backgroundColor: '#333',
@@ -2576,7 +2876,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   materialNameSelected: {
-    color: '#222',
+    color: '#000',
     fontWeight: 'bold',
   },
   materialSubtype: {
@@ -2671,4 +2971,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CostCalculatorScreen; 
+export default CostCalculatorScreen;
