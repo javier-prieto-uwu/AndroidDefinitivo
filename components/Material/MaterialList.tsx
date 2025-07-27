@@ -57,11 +57,14 @@ const MaterialList: React.FC<MaterialListProps> = ({
     }
     return tipo;
   };
-  // Agrupar materiales por categoría y luego por tipo
+  // Agrupar materiales por categoría y luego por tipo (omitir productos sin tipo)
   const agruparMaterialesPorCategoriaYTipo = () => {
     const matsPorCategoria: { [categoria: string]: { [tipo: string]: Material[] } } = {};
     
-    materiales.forEach(mat => {
+    // Filtrar materiales que tienen tipo definido
+    const materialesFiltrados = materiales.filter(mat => mat.tipo && mat.tipo.trim() !== '');
+    
+    materialesFiltrados.forEach(mat => {
       const categoria = mat.categoria || 'Sin categoría';
       const tipo = mat.tipo || 'Sin tipo';
       

@@ -73,6 +73,75 @@ const InventoryScreen: React.FC = () => {
     imagen: ''
   });
 
+  // Función para traducir nombres de materiales
+  const getNombreTraducido = (nombre: string) => {
+    if (!nombre || lang !== 'en') return nombre;
+    
+    const nombreMap: { [key: string]: string } = {
+      // Productos específicos
+      'Aro de llavero': 'Keychain Ring',
+      'Aros de llavero': 'Keychain Rings',
+      // Tipos de pintura
+      'Acrílica': 'Acrylic',
+      'Esmalte': 'Enamel',
+      'Spray': 'Spray',
+      'Óleo': 'Oil',
+      'Vinílica': 'Vinyl',
+      'Acuarela': 'Watercolor',
+      // Tipos de resina
+      'Estándar': 'Standard',
+      'Tough (tipo ABS)': 'Tough (ABS type)',
+      'Flexible': 'Flexible',
+      'Alta temperatura': 'High Temperature',
+      'Dental / Biocompatible': 'Dental / Biocompatible',
+      'Transparente': 'Transparent',
+      'Fast / Rápida': 'Fast / Rapid',
+      'Especiales': 'Special',
+      // Tipos de filamento
+      'PLA': 'PLA',
+      'ABS': 'ABS',
+      'PETG': 'PETG',
+      'TPU': 'TPU',
+      'Nylon': 'Nylon',
+      'PC': 'PC',
+      'HIPS': 'HIPS',
+      'ASA': 'ASA',
+      'PVA': 'PVA',
+      'PP': 'PP',
+      'Metal': 'Metal',
+      'Elioq': 'Elioq'
+    };
+    
+    // Buscar traducción exacta primero
+    if (nombreMap[nombre]) {
+      return nombreMap[nombre];
+    }
+    
+    // Si no encuentra traducción exacta, buscar por el nombre base
+    for (const [original, traduccion] of Object.entries(nombreMap)) {
+      if (nombre.startsWith(original)) {
+        return nombre.replace(original, traduccion);
+      }
+    }
+    
+    return nombre;
+  };
+
+  // Función para traducir categorías
+  const traducirCategoria = (categoria: string) => {
+    if (!categoria || lang !== 'en') return categoria;
+    
+    const categoriaMap: { [key: string]: string } = {
+      'Filamento': 'Filament',
+      'Resina': 'Resin',
+      'Pintura': 'Paint',
+      'Aros de llavero': 'Keychain Rings',
+      'Sin categoría': 'No Category'
+    };
+    
+    return categoriaMap[categoria] || categoria;
+  };
+
   // TIPOS Y SUBTIPOS INTERNOS EN ESPAÑOL (igual que AddMaterialScreen)
   const TIPOS_FILAMENTO = [
     { tipo: 'PLA', subtipos: ['Normal', 'Seda', 'Plus', 'Madera', 'Brillante', 'Mate', 'Flexible', 'Glow', 'Transparente', 'Multicolor', 'Reciclado', 'Carbono', 'Alta temperatura'] },
@@ -288,8 +357,12 @@ const InventoryScreen: React.FC = () => {
     return materialesOrdenados;
   };
 
-  // Filtro de materiales por búsqueda
+  // Filtro de materiales por búsqueda y omitir productos sin tipo
   const materialesFiltrados = materiales.filter(mat => {
+    // Omitir productos que no tienen tipo definido
+    if (!mat.tipo || mat.tipo.trim() === '') {
+      return false;
+    }
     const texto = `${mat.nombre || ''} ${mat.tipo || ''} ${mat.subtipo || ''}`.toLowerCase();
     return texto.includes(busqueda.toLowerCase());
   });
@@ -582,7 +655,7 @@ const InventoryScreen: React.FC = () => {
                     styles.categoriaBotonText,
                     categoriaSeleccionada === cat ? styles.categoriaBotonTextActivo : null
                   ]}>
-                    {CATEGORIAS_BASE.includes(cat) ? CATEGORIAS_BASE_UI[cat] : cat}
+                    {traducirCategoria(cat)}
                   </Text>
                 </TouchableOpacity>
               ))
@@ -614,7 +687,7 @@ const InventoryScreen: React.FC = () => {
                 key={cat} 
                 style={styles.categoriaContainer}
               >
-                <Text style={styles.categoriaTitulo}>{CATEGORIAS_BASE.includes(cat) ? CATEGORIAS_BASE_UI[cat] : cat}</Text>
+                <Text style={styles.categoriaTitulo}>{traducirCategoria(cat)}</Text>
                 <View style={{
                   flexDirection: isLargeDevice ? 'row' : 'column',
                   flexWrap: isLargeDevice ? 'wrap' : 'nowrap',
@@ -668,7 +741,7 @@ const InventoryScreen: React.FC = () => {
                       {/* Información del material */}
                       <View style={styles.materialInfo}>
                         <Text style={styles.materialNombre} numberOfLines={2} ellipsizeMode="tail">
-                          {mat.nombre}
+                          {getNombreTraducido(mat.nombre)}
                         </Text>
                         {cat === 'Filamento' ? (
                           <Text style={styles.materialSubtipo} numberOfLines={1} ellipsizeMode="tail">
@@ -811,7 +884,7 @@ const InventoryScreen: React.FC = () => {
                   {/* Información del material */}
                   <View style={styles.materialInfo}>
                     <Text style={[styles.materialNombre, { color: '#e53935' }]} numberOfLines={2} ellipsizeMode="tail">
-                      {mat.nombre}
+                      {getNombreTraducido(mat.nombre)}
                     </Text>
                     <Text style={[styles.materialSubtipo, { color: '#e53935' }]} numberOfLines={1} ellipsizeMode="tail">
                       {mat.subtipo || mat.tipo || 'Sin tipo'}
@@ -925,7 +998,7 @@ const InventoryScreen: React.FC = () => {
                             styles.pickerOptionText,
                             editForm.categoria === categoria && styles.pickerOptionTextActive
                           ]}>
-                            {categoria}
+                            {traducirCategoria(categoria)}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -971,7 +1044,7 @@ const InventoryScreen: React.FC = () => {
                               styles.pickerOptionText,
                               editForm.tipo === tipo && styles.pickerOptionTextActive
                             ]}>
-                              {tipo}
+                              {lang === 'en' ? TIPOS_RESINA_UI[tipo] : tipo}
                             </Text>
                           </TouchableOpacity>
                         ))}
@@ -988,7 +1061,7 @@ const InventoryScreen: React.FC = () => {
                               styles.pickerOptionText,
                               editForm.tipo === tipo && styles.pickerOptionTextActive
                             ]}>
-                              {tipo}
+                              {lang === 'en' ? TIPOS_PINTURA_UI[tipo] : tipo}
                             </Text>
                           </TouchableOpacity>
                         ))}
@@ -1014,7 +1087,7 @@ const InventoryScreen: React.FC = () => {
                               styles.pickerOptionText,
                               editForm.subtipo === subtipo && styles.pickerOptionTextActive
                             ]}>
-                              {subtipo}
+                              {lang === 'en' && subtipo === 'Normal' ? 'Standard' : subtipo}
                             </Text>
                           </TouchableOpacity>
                         ))}

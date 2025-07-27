@@ -227,8 +227,8 @@ const HomeScreen: React.FC = () => {
             {t.noMaterials}
           </Text>
         ) : (
-          // Agrupar materiales por categoría
-          Object.entries(materiales.reduce((acc, mat) => {
+          // Agrupar materiales por categoría (omitir productos sin tipo)
+          Object.entries(materiales.filter(mat => mat.tipo && mat.tipo.trim() !== '').reduce((acc, mat) => {
             const cat = mat.categoria || 'Sin categoría';
             if (!acc[cat]) acc[cat] = [];
             acc[cat].push(mat);
