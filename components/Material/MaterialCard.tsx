@@ -24,72 +24,97 @@ const MaterialCard: React.FC<MaterialCardProps> = ({ material, isSelected, onPre
   const { lang } = useLanguage();
   const t = translations[lang];
 
-  // Función para traducir subtipos
+  const getNombreTraducido = (nombre: string) => {
+    if (!nombre || lang !== 'en') return nombre;
+    
+    const nombreMap: { [key: string]: string } = {
+      // Productos específicos
+      'Aro de llavero': 'Keychain Ring',
+      'Aros de llavero': 'Keychain Rings',
+      // Tipos de pintura
+      'Acrílica': 'Acrylic',
+      'Esmalte': 'Enamel',
+      'Spray': 'Spray',
+      'Óleo': 'Oil',
+      'Vinílica': 'Vinyl',
+      'Acuarela': 'Watercolor',
+      // Tipos de resina
+      'Estándar': 'Standard',
+      'Tough (tipo ABS)': 'Tough (ABS type)',
+      'Flexible': 'Flexible',
+      'Alta temperatura': 'High Temperature',
+      'Dental / Biocompatible': 'Dental / Biocompatible',
+      'Transparente': 'Transparent',
+      'Fast / Rápida': 'Fast / Rapid',
+      'Especiales': 'Special',
+      // Tipos de filamento
+      'PLA': 'PLA',
+      'ABS': 'ABS',
+      'PETG': 'PETG',
+      'TPU': 'TPU',
+      'Nylon': 'Nylon',
+      'PC': 'PC',
+      'HIPS': 'HIPS',
+      'ASA': 'ASA',
+      'PVA': 'PVA',
+      'PP': 'PP',
+      'Metal': 'Metal',
+      'Elioq': 'Elioq'
+    };
+    
+    // Buscar traducción exacta primero
+    if (nombreMap[nombre]) {
+      return nombreMap[nombre];
+    }
+    
+    // Si no encuentra traducción exacta, buscar por el nombre base (antes de # o espacios adicionales)
+    for (const [original, traduccion] of Object.entries(nombreMap)) {
+      if (nombre.startsWith(original)) {
+        // Reemplazar solo la parte traducible y mantener el resto
+        return nombre.replace(original, traduccion);
+      }
+    }
+    
+    return nombre;
+  };
+
   const getSubtipoTraducido = (subtipo: string) => {
     if (!subtipo || !t) return subtipo;
-    
     const subtipoMap: { [key: string]: string } = {
-      // Español a traducción
       'Transparente': t.transparent,
       'transparent': t.transparent,
       'Seda': t.silk,
       'Silk': t.silk,
       'Madera': t.woodType,
-      'madera': t.woodType,
       'Wood': t.woodType,
-      'wood': t.woodType,
       'Normal': t.normal,
-      'normal': t.normal,
       'Plus': t.plus,
-      'plus': t.plus,
       'Brillante': t.glossy,
-      'brillante': t.glossy,
       'Glossy': t.glossy,
-      'glossy': t.glossy,
       'Mate': t.matte,
-      'mate': t.matte,
       'Matte': t.matte,
-      'matte': t.matte,
       'Flexible': t.flexible,
-      'flexible': t.flexible,
       'Glow': t.glow,
-      'glow': t.glow,
       'Metal': t.metal,
-      'metal': t.metal,
       'Multicolor': t.multicolor,
-      'multicolor': t.multicolor,
       'Reciclado': t.recycled,
-      'reciclado': t.recycled,
       'Recycled': t.recycled,
-      'recycled': t.recycled,
       'Carbono': t.carbon,
-      'carbono': t.carbon,
       'Carbon': t.carbon,
-      'carbon': t.carbon,
       'Magnético': t.magnetic,
-      'magnético': t.magnetic,
       'Magnetic': t.magnetic,
-      'magnetic': t.magnetic,
       'Conductivo': t.conductive,
-      'conductivo': t.conductive,
       'Conductive': t.conductive,
-      'conductive': t.conductive,
       'Alta temperatura': t.highTemperature,
-      'alta temperatura': t.highTemperature,
       'High Temperature': t.highTemperature,
-      'high temperature': t.highTemperature,
       'Baja temperatura': t.lowTemperature,
-      'baja temperatura': t.lowTemperature,
       'Low Temperature': t.lowTemperature,
-      'low temperature': t.lowTemperature,
       'Ignífugo': t.fireResistant,
-      'ignífugo': t.fireResistant,
-      'Fire Resistant': t.fireResistant,
-      'fire resistant': t.fireResistant
+      'Fire Resistant': t.fireResistant
     };
-    
     return subtipoMap[subtipo] || subtipo;
   };
+
   const getPrecioDisplay = () => {
     const categoria = material.categoria || 'Filamento';
     let precio: string;
@@ -98,8 +123,6 @@ const MaterialCard: React.FC<MaterialCardProps> = ({ material, isSelected, onPre
       case 'Aros de llavero':
         precio = material.precio || '0';
         break;
-      case 'Filamento':
-      case 'Resina':
       default:
         precio = material.precioBobina || material.precio || '0';
         break;
@@ -111,7 +134,6 @@ const MaterialCard: React.FC<MaterialCardProps> = ({ material, isSelected, onPre
     const cantidad = typeof material.cantidadRestante !== 'undefined' 
       ? material.cantidadRestante 
       : material.cantidad || '0';
-    
     const categoria = material.categoria || 'Filamento';
     let unidad = '';
     switch (categoria) {
@@ -122,52 +144,36 @@ const MaterialCard: React.FC<MaterialCardProps> = ({ material, isSelected, onPre
       case 'Pintura':
         unidad = 'ml';
         break;
-      case 'Aros de llavero':
       default:
-        unidad = ' unidades';
+        unidad = lang === 'en' ? ' units' : ' unidades';
         break;
     }
-    
     return cantidad + unidad;
   };
 
   return (
     <TouchableOpacity
-      style={[
-        styles.container,
-        isSelected ? styles.selected : null
-      ]}
+      style={[styles.container, isSelected && styles.selected]}
       onPress={onPress}
     >
-      <View style={[
-        styles.colorIndicator,
-        { backgroundColor: material.color || '#00e676' }
-      ]} />
+      <View style={[styles.colorIndicator, { backgroundColor: material.color || '#00e676' }]} />
       <View style={styles.content}>
-        <Text style={[
-          styles.nombre,
-          isSelected ? styles.nombreSelected : null
-        ]} numberOfLines={1} ellipsizeMode="tail">
-          {material.nombre}
+        <Text style={[styles.nombre, isSelected && styles.nombreSelected]} numberOfLines={1} ellipsizeMode="tail">
+          {getNombreTraducido(material.nombre)}
         </Text>
-        <Text style={[
-          styles.subtipo,
-          isSelected ? styles.textSelected : null
-        ]} numberOfLines={1} ellipsizeMode="tail">
-          {getSubtipoTraducido(material.subtipo || '')}
-        </Text>
-        <View style={styles.infoRow}>
-          <Text style={[
-            styles.cantidadRestante,
-            isSelected ? styles.textSelected : null
-          ]}>
-            {t?.remainingQuantity || 'Restante'}: {getCantidadRestante()}
+        {material.subtipo && material.categoria === 'Filamento' && (
+          <Text style={[styles.subtipo, isSelected && styles.textSelected]} numberOfLines={1} ellipsizeMode="tail">
+            {getSubtipoTraducido(material.subtipo)}
           </Text>
-          <Text style={[
-            styles.precio,
-            isSelected ? styles.textSelected : null
-          ]}>
-            ${getPrecioDisplay()}
+        )}
+        <View style={styles.infoRow}>
+          <Text style={[styles.label, isSelected && styles.textSelected]}>
+            {lang === 'en' ? 'Remaining: ' : 'Restante: '}{'\n'}
+            <Text style={styles.value}>{getCantidadRestante()}</Text>
+          </Text>
+          <Text style={[styles.labelPrecio, isSelected && styles.textSelected]}>
+            {lang === 'en' ? 'Price: ' : 'Precio: '}{'\n'}
+            <Text style={styles.valuePrecio}>${getPrecioDisplay()}</Text>
           </Text>
         </View>
       </View>
@@ -230,22 +236,31 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     marginTop: 2,
   },
-  cantidadRestante: {
+  label: {
+    color: '#a0a0a0',
+    fontSize: 9,
+    fontWeight: '500',
+    marginRight: 2,
+  },
+  value: {
     color: '#00e676',
     fontSize: 10,
-    fontWeight: '600',
-    flex: 1,
-    lineHeight: 13,
+    fontWeight: '700',
   },
-  precio: {
+  labelPrecio: {
+    color: '#a0a0a0',
+    fontSize: 9,
+    fontWeight: '500',
+    marginRight: 2,
+    textAlign: 'right',
+  },
+  valuePrecio: {
     color: '#ffd600',
     fontSize: 10,
-    fontWeight: 'bold',
-    lineHeight: 13,
-    textAlign: 'right',
+    fontWeight: '700',
   },
   textSelected: {
     color: '#333',

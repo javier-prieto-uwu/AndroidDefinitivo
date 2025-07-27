@@ -97,7 +97,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
               // Cambiar el estado de login para regresar a la pantalla de bienvenida
               setIsLoggedIn(false);
             } catch (error) {
-              Alert.alert('Error', 'No se pudo cerrar sesión');
+              Alert.alert(t.error, t.logoutError);
             }
           }
         }
@@ -107,7 +107,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
 
   const handleEditProfile = () => {
     // TODO: Implementar edición de perfil
-    Alert.alert('Editar perfil', 'Función en desarrollo');
+    Alert.alert(t.editProfile, t.functionInDevelopment);
   };
 
   const handleQuickAction = (action: string) => {

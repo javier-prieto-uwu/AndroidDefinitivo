@@ -26,6 +26,75 @@ const HomeScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [materialExpandido, setMaterialExpandido] = useState<string | null>(null);
 
+  // Función para traducir nombres de materiales
+  const getNombreTraducido = (nombre: string) => {
+    if (!nombre || lang !== 'en') return nombre;
+    
+    const nombreMap: { [key: string]: string } = {
+      // Productos específicos
+      'Aro de llavero': 'Keychain Ring',
+      'Aros de llavero': 'Keychain Rings',
+      // Tipos de pintura
+      'Acrílica': 'Acrylic',
+      'Esmalte': 'Enamel',
+      'Spray': 'Spray',
+      'Óleo': 'Oil',
+      'Vinílica': 'Vinyl',
+      'Acuarela': 'Watercolor',
+      // Tipos de resina
+      'Estándar': 'Standard',
+      'Tough (tipo ABS)': 'Tough (ABS type)',
+      'Flexible': 'Flexible',
+      'Alta temperatura': 'High Temperature',
+      'Dental / Biocompatible': 'Dental / Biocompatible',
+      'Transparente': 'Transparent',
+      'Fast / Rápida': 'Fast / Rapid',
+      'Especiales': 'Special',
+      // Tipos de filamento
+      'PLA': 'PLA',
+      'ABS': 'ABS',
+      'PETG': 'PETG',
+      'TPU': 'TPU',
+      'Nylon': 'Nylon',
+      'PC': 'PC',
+      'HIPS': 'HIPS',
+      'ASA': 'ASA',
+      'PVA': 'PVA',
+      'PP': 'PP',
+      'Metal': 'Metal',
+      'Elioq': 'Elioq'
+    };
+    
+    // Buscar traducción exacta primero
+    if (nombreMap[nombre]) {
+      return nombreMap[nombre];
+    }
+    
+    // Si no encuentra traducción exacta, buscar por el nombre base
+    for (const [original, traduccion] of Object.entries(nombreMap)) {
+      if (nombre.startsWith(original)) {
+        return nombre.replace(original, traduccion);
+      }
+    }
+    
+    return nombre;
+  };
+
+  // Función para traducir categorías
+  const traducirCategoria = (categoria: string) => {
+    if (!categoria || lang !== 'en') return categoria;
+    
+    const categoriaMap: { [key: string]: string } = {
+      'Filamento': 'Filament',
+      'Resina': 'Resin',
+      'Pintura': 'Paint',
+      'Aros de llavero': 'Keychain Rings',
+      'Sin categoría': 'No Category'
+    };
+    
+    return categoriaMap[categoria] || categoria;
+  };
+
   useFocusEffect(
     React.useCallback(() => {
       const cargarDatos = async () => {
@@ -166,7 +235,7 @@ const HomeScreen: React.FC = () => {
             return acc;
           }, {} as { [cat: string]: any[] })).map(([cat, mats]) => (
             <View key={cat} style={{ marginBottom: 18 }}>
-              <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 17, marginBottom: 6 }}>{cat}</Text>
+              <Text style={{ color: '#00e676', fontWeight: 'bold', fontSize: 17, marginBottom: 6 }}>{traducirCategoria(cat)}</Text>
               {(mats as any[]).map((material) => (
                 <View key={material.id} style={styles.materialItem}>
                   {/* Contenedor de imagen */}
@@ -185,13 +254,13 @@ const HomeScreen: React.FC = () => {
                   {/* Contenedor de información */}
                   <View style={styles.infoContainer}>
                     <View style={styles.materialInfo}>
-                      <Text style={styles.materialName}>{material.nombre || 'Sin nombre'}</Text>
+                      <Text style={styles.materialName}>{getNombreTraducido(material.nombre) || 'Sin nombre'}</Text>
                       <Text style={styles.materialPrice}>${limpiarPrecio(material.precio || '0')}</Text>
                     </View>
                     <View style={styles.materialDetails}>
                       <View style={styles.stockContainer}>
                         <Text style={styles.stockLabel}>{t.stock}</Text>
-                        <Text style={styles.materialStock}>{material.cantidad || 0} unidades</Text>
+                        <Text style={styles.materialStock}>{material.cantidad || 0} {lang === 'en' ? 'units' : 'unidades'}</Text>
                       </View>
                       <Text style={styles.materialDescription}>{material.descripcion || ''}</Text>
                     </View>

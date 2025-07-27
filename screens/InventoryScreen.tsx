@@ -321,7 +321,7 @@ const InventoryScreen: React.FC = () => {
       setShowDeleteAlert(false);
     } catch (e) {
       console.error('Error eliminando material:', e);
-      Alert.alert('Error', 'No se pudo eliminar el material. Inténtalo de nuevo.');
+      Alert.alert(t.error, t.materialDeleteError);
       setShowDeleteAlert(false);
     }
   };
@@ -351,22 +351,22 @@ const InventoryScreen: React.FC = () => {
     
     // Validaciones
     if (!editForm.nombre.trim()) {
-      Alert.alert('Error', 'El nombre del material es obligatorio');
+      Alert.alert(t.error, t.materialNameRequired);
       return;
     }
     
     if (!editForm.precio || parseFloat(editForm.precio) <= 0) {
-      Alert.alert('Error', 'El precio debe ser mayor a 0');
+      Alert.alert(t.error, t.priceGreaterThanZero);
       return;
     }
     
     if (!editForm.cantidad || parseFloat(editForm.cantidad) < 0) {
-      Alert.alert('Error', 'La cantidad no puede ser negativa');
+      Alert.alert(t.error, t.quantityCannotBeNegative);
       return;
     }
     
     if (!editForm.cantidadRestante || parseFloat(editForm.cantidadRestante) < 0) {
-      Alert.alert('Error', 'La cantidad restante no puede ser negativa');
+      Alert.alert(t.error, t.remainingQuantityCannotBeNegative);
       return;
     }
     
@@ -435,10 +435,10 @@ const InventoryScreen: React.FC = () => {
         imagen: ''
       });
       
-      Alert.alert('Éxito', 'Material actualizado correctamente');
+      Alert.alert(t.success, t.materialUpdatedSuccessfully);
     } catch (error) {
       console.error('Error al actualizar material:', error);
-      Alert.alert('Error', 'No se pudo actualizar el material. Inténtalo de nuevo.');
+      Alert.alert(t.error, t.materialUpdateError);
     }
   };
 

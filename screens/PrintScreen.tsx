@@ -472,10 +472,10 @@ const PrintScreen: React.FC = () => {
       
       setNuevaCategoria('');
       cargarCategoriasYClientes();
-      Alert.alert('Éxito', 'Categoría agregada correctamente');
+      Alert.alert(t.success, t.categoryAddedSuccessfully);
     } catch (error) {
       console.error('Error agregando categoría:', error);
-      Alert.alert('Error', 'No se pudo agregar la categoría');
+      Alert.alert(t.error, t.categoryAddError);
     }
   };
 
@@ -493,21 +493,21 @@ const PrintScreen: React.FC = () => {
       
       setNuevoCliente('');
       cargarCategoriasYClientes();
-      Alert.alert('Éxito', 'Cliente agregado correctamente');
+      Alert.alert(t.success, t.clientAddedSuccessfully);
     } catch (error) {
       console.error('Error agregando cliente:', error);
-      Alert.alert('Error', 'No se pudo agregar el cliente');
+      Alert.alert(t.error, t.clientAddError);
     }
   };
 
   const eliminarCategoria = async (nombreCategoria: string) => {
     Alert.alert(
-      'Confirmar eliminación',
-      `¿Estás seguro de que quieres eliminar la categoría "${nombreCategoria}"?`,
+      t.confirmDeletion,
+      t.deleteCategoryConfirm.replace('{category}', nombreCategoria),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t.cancel, style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: t.delete,
           style: 'destructive',
           onPress: async () => {
             try {
@@ -521,13 +521,13 @@ const PrintScreen: React.FC = () => {
               if (categoriaDoc) {
                 await deleteDoc(doc(db, 'usuarios', user.uid, 'categoriasVenta', categoriaDoc.id));
                 cargarCategoriasYClientes();
-                Alert.alert('Éxito', 'Categoría eliminada correctamente');
+                Alert.alert(t.success, t.categoryDeletedSuccessfully);
               } else {
-                Alert.alert('Error', 'No se encontró la categoría');
+                Alert.alert(t.error, t.categoryNotFound);
               }
             } catch (error) {
               console.error('Error eliminando categoría:', error);
-              Alert.alert('Error', 'No se pudo eliminar la categoría');
+              Alert.alert(t.error, t.categoryDeleteError);
             }
           }
         }
@@ -537,12 +537,12 @@ const PrintScreen: React.FC = () => {
 
   const eliminarCliente = async (nombreCliente: string) => {
     Alert.alert(
-      'Confirmar eliminación',
-      `¿Estás seguro de que quieres eliminar el cliente "${nombreCliente}"?`,
+      t.confirmDeletion,
+      t.deleteClientConfirm.replace('{client}', nombreCliente),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t.cancel, style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: t.delete,
           style: 'destructive',
           onPress: async () => {
             try {
@@ -556,13 +556,13 @@ const PrintScreen: React.FC = () => {
               if (clienteDoc) {
                 await deleteDoc(doc(db, 'usuarios', user.uid, 'clientes', clienteDoc.id));
                 cargarCategoriasYClientes();
-                Alert.alert('Éxito', 'Cliente eliminado correctamente');
+                Alert.alert(t.success, t.clientDeletedSuccessfully);
               } else {
-                Alert.alert('Error', 'No se encontró el cliente');
+                Alert.alert(t.error, t.clientNotFound);
               }
             } catch (error) {
               console.error('Error eliminando cliente:', error);
-              Alert.alert('Error', 'No se pudo eliminar el cliente');
+              Alert.alert(t.error, t.clientDeleteError);
             }
           }
         }
@@ -642,7 +642,7 @@ const PrintScreen: React.FC = () => {
       
       setLoading(false);
     } catch (e) {
-      setError('Error al cargar los proyectos.');
+      setError(t.projectsLoadError);
       setProyectos([]);
       setProyectosArchivados([]);
       setProyectosSueltos([]);
@@ -670,7 +670,7 @@ const PrintScreen: React.FC = () => {
       }));
       setImpresiones(datos);
     } catch (e) {
-      setError('Error al cargar las impresiones.');
+      setError(t.printsLoadError);
       setImpresiones([]);
     } finally {
       setLoading(false);
@@ -709,7 +709,7 @@ const PrintScreen: React.FC = () => {
       setNuevoProyectoNombre('');
       cargarProyectosYSueltos();
     } catch (e) {
-      Alert.alert('Error', 'No se pudo crear el proyecto.');
+      Alert.alert(t.error, t.projectCreateError);
     }
   };
 
@@ -802,7 +802,7 @@ const PrintScreen: React.FC = () => {
       setImpresionParaVenta(null);
     } catch (error) {
       console.error('Error marcando como vendido:', error);
-      Alert.alert('Error', 'No se pudo marcar como vendido');
+      Alert.alert(t.error, t.markAsSoldError);
     }
   };
 
@@ -840,7 +840,7 @@ const PrintScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('Error marcando como pendiente:', error);
-      Alert.alert('Error', 'No se pudo marcar como pendiente');
+      Alert.alert(t.error, t.markAsPendingError);
     }
   };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import MaterialCard from './MaterialCard';
+import { useLanguage } from '../../utils/LanguageProvider';
 
 interface Material {
   id: string;
@@ -28,6 +29,34 @@ const MaterialList: React.FC<MaterialListProps> = ({
   onMaterialSelect,
   maxItems 
 }) => {
+  const { lang } = useLanguage();
+
+  // Función para traducir categorías
+  const traducirCategoria = (categoria: string) => {
+    if (lang === 'en') {
+      switch (categoria) {
+        case 'Filamento': return 'Filament';
+        case 'Resina': return 'Resin';
+        case 'Pintura': return 'Paint';
+        case 'Aros de llavero': return 'Keychain Rings';
+        case 'Sin categoría': return 'No Category';
+        default: return categoria;
+      }
+    }
+    return categoria;
+  };
+
+  // Función para traducir tipos
+  const traducirTipo = (tipo: string) => {
+    if (lang === 'en') {
+      switch (tipo) {
+        case 'Sin tipo': return 'No Type';
+        case 'Aro de llavero': return 'Keychain Ring';
+        default: return tipo;
+      }
+    }
+    return tipo;
+  };
   // Agrupar materiales por categoría y luego por tipo
   const agruparMaterialesPorCategoriaYTipo = () => {
     const matsPorCategoria: { [categoria: string]: { [tipo: string]: Material[] } } = {};
@@ -57,7 +86,7 @@ const MaterialList: React.FC<MaterialListProps> = ({
 
     return (
       <View key={tipo} style={styles.subGroupContainer}>
-        <Text style={styles.subGroupTitle}>{tipo}</Text>
+        <Text style={styles.subGroupTitle}>{traducirTipo(tipo)}</Text>
         {filas.map((fila, idx) => (
           <View key={idx} style={styles.row}>
             {fila.map((mat) => (
@@ -79,7 +108,7 @@ const MaterialList: React.FC<MaterialListProps> = ({
   const renderCategoria = (categoria: string, tipos: { [tipo: string]: Material[] }) => {
     return (
       <View key={categoria} style={styles.categoryContainer}>
-        <Text style={styles.categoryTitle}>{categoria}</Text>
+        <Text style={styles.categoryTitle}>{traducirCategoria(categoria)}</Text>
         {Object.entries(tipos).map(([tipo, materiales]) => 
           renderMaterialGroup(tipo, materiales)
         )}
@@ -138,4 +167,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MaterialList; 
+export default MaterialList;

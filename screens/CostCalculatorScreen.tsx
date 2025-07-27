@@ -947,18 +947,18 @@ const CostCalculatorScreen: React.FC = () => {
   // Guardar cálculo en Firestore optimizado
   const guardarEnBaseDeDatos = async () => {
     if (!calculo.nombre.trim()) {
-      showCustomAlert('Error', 'Por favor ingresa un nombre para el cálculo', 'error');
+      showCustomAlert(t.error, t.calculationNameRequired, 'error');
       return;
     }
     
     // Verificar que se haya seleccionado un material
     if (!esMultifilamento && !calculo.materialSeleccionado.id) {
-      showCustomAlert('Error', 'Por favor selecciona un material para el cálculo', 'error');
+      showCustomAlert(t.error, t.selectMaterialRequired, 'error');
       return;
     }
     
     if (esMultifilamento && (!calculo.materialesMultiples || calculo.materialesMultiples.length === 0)) {
-      showCustomAlert('Error', 'Por favor selecciona al menos un material para el cálculo', 'error');
+      showCustomAlert(t.error, t.selectMaterialsRequired, 'error');
       return;
     }
     
@@ -966,18 +966,18 @@ const CostCalculatorScreen: React.FC = () => {
     if (!esMultifilamento && calculo.materialSeleccionado.id) {
       const materialExiste = materialesGuardados.find((m: any) => m.id === calculo.materialSeleccionado.id);
       if (!materialExiste) {
-        showCustomAlert('Error', 'El material seleccionado ya no existe en la base de datos. Por favor selecciona otro material.', 'error');
+        showCustomAlert(t.error, t.materialNotExists, 'error');
         return;
       }
     }
     
     const user = auth.currentUser;
     if (!user) {
-      showCustomAlert('Error', 'Debes iniciar sesión para guardar cálculos', 'error');
+      showCustomAlert(t.error, t.loginRequiredToSave, 'error');
       return;
     }
     
-    showCustomAlert('Guardando', 'Guardando cálculo...', 'info');
+    showCustomAlert(t.saving, t.savingCalculation, 'info');
     
     try {
       const fecha = new Date();
@@ -1007,13 +1007,13 @@ const CostCalculatorScreen: React.FC = () => {
       // Restar gramos utilizados de los materiales
       await actualizarCantidadesMateriales();
       
-      showCustomAlert('¡Cálculo guardado!', `El cálculo "${calculo.nombre}" se guardó exitosamente.\n\nTotal: $${getTotal()} ${getCurrency(lang)}\n\nPuedes consultar este cálculo en el historial de impresiones.`, 'success');
+      showCustomAlert(t.calculationSaved, `${t.calculationSavedMessage.replace('{name}', calculo.nombre)}\n\n${t.total}: $${getTotal()} ${getCurrency(lang)}\n\n${t.checkHistoryMessage}`, 'success');
       
       // Limpiar formulario
       limpiarFormularioHook();
       
     } catch (error) {
-      showCustomAlert('Error', 'No se pudo guardar el cálculo. Intenta de nuevo.', 'error');
+      showCustomAlert(t.error, t.saveCalculationError, 'error');
     }
   };
 
@@ -2208,18 +2208,18 @@ const CostCalculatorScreen: React.FC = () => {
         {/* Botón para registrar fallo de impresión */}
                         <TouchableOpacity style={[styles.saveButton, { backgroundColor: '#d32f2f', marginTop: 10 }]} onPress={async () => {
           if (!calculo.nombre.trim()) {
-            showCustomAlert('Error', t.projectNameRequired, 'error');
+            showCustomAlert(t.error, t.projectNameRequired, 'error');
             return;
           }
           const user = auth.currentUser;
           if (!user) {
-            showCustomAlert('Error', t.loginRequiredToSave, 'error');
+            showCustomAlert(t.error, t.loginRequiredToSave, 'error');
             return;
           }
           showCustomAlert(t.saving, t.registeringFailure, 'info');
           try {
             const fecha = new Date();
-            const fechaFormateada = fecha.toLocaleDateString('es-ES', {
+            const fechaFormateada = fecha.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',
@@ -2288,7 +2288,7 @@ const CostCalculatorScreen: React.FC = () => {
             setMaterialSeleccionado('');
             setMostrarDetallesImpresion(false);
           } catch (error) {
-            showCustomAlert('Error', t.failureRegistrationError, 'error');
+            showCustomAlert(t.error, t.failureRegistrationError, 'error');
           }
         }}>
           <Text style={[styles.saveButtonText, { color: '#fff' }]}>{t.registerFailure}</Text>
