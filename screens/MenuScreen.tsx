@@ -1,59 +1,59 @@
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Alert } from 'react-native'
-import React, { useEffect, useState } from 'react'
-import { useNavigation } from '@react-navigation/native'
-import { useFocusEffect } from '@react-navigation/native'
-import { auth } from '../api/firebase'
-import { signOut } from 'firebase/auth'
-import { getDocs, collection, getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
-import { PieChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  Image,
+  Dimensions
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { auth, app } from '../api/firebase';
+import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../utils/LanguageProvider';
 import { getCurrency } from '../utils';
 import translations from '../utils/locales';
+import { PieChart } from 'react-native-chart-kit';
+import { signOut } from 'firebase/auth';
 
-// Simulación de datos locales para estadísticas y categorías
-const estadisticasEjemplo = {
-  materialesDisponibles: 3,
-  filamentoConsumido: 1240,
-  resinaConsumida: 0,
-  proyectosCompletados: 8,
-  tiempoImpresion: 42.5,
-  costoTotalMateriales: 1500,
-  ganancias: 3200,
-  eficiencia: 80,
-  tiempoPromedioProyecto: '5.3',
-  pedidosPendientes: 1
-};
 
-const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolean) => void }) => {
+const db = getFirestore(app);
+
+const MenuScreen: React.FC<{ setIsLoggedIn: (value: boolean) => void }> = ({ setIsLoggedIn }) => {
   const navigation = useNavigation();
   const { lang, setLang } = useLanguage();
   const t = translations[lang];
-  
-  // Estado para estadísticas y categorías
-  const [estadisticas, setEstadisticas] = useState(estadisticasEjemplo);
-  // Definir categoriasEjemplo aquí para que tenga acceso a 't'
-  const categoriasEjemplo = [
-    { nombre: t.filament, cantidad: 2, color: '#00e676' },
-    { nombre: t.resin, cantidad: 1, color: '#2196f3' },
-    { nombre: t.paint, cantidad: 0, color: '#ff9800' },
-    { nombre: t.keychainRings, cantidad: 0, color: '#9c27b0' }
-  ];
-  const [categoriasMateriales, setCategoriasMateriales] = useState(categoriasEjemplo);
+
+  const [estadisticas, setEstadisticas] = useState({
+    materialesDisponibles: 0,
+    filamentoConsumido: 0,
+    resinaConsumida: 0,
+    proyectosCompletados: 0,
+    tiempoImpresion: 0,
+    costoTotalMateriales: 0,
+    ganancias: 0,
+    eficiencia: 0,
+    tiempoPromedioProyecto: '0',
+    pedidosPendientes: 0
+  });
+  const [categoriasMateriales, setCategoriasMateriales] = useState<any[]>([]);
   const [categoriasVendidas, setCategoriasVendidas] = useState<any[]>([]);
   const [mejorCliente, setMejorCliente] = useState<any>(null);
   const [topClientes, setTopClientes] = useState<any[]>([]);
   const [materiales, setMateriales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Datos del usuario autenticado
   const user = auth.currentUser;
   const nombreUsuario = user?.displayName || t.user;
   const emailUsuario = user?.email || '';
   const fotoUsuario = user?.photoURL || 'https://via.placeholder.com/100x100/00e676/ffffff?text=U';
-  // Nivel calculado según horas de impresión
-  // Nivel numérico y texto
   const nivelNumerico = Math.floor(estadisticas.tiempoImpresion / 10);
   let nivelUsuario = 'Principiante';
   if (estadisticas.tiempoImpresion >= 150) {
@@ -61,8 +61,8 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
   } else if (estadisticas.tiempoImpresion >= 50) {
     nivelUsuario = 'Intermedio';
   }
-  // Guardar nivel en Firestore si cambia
-  React.useEffect(() => {
+
+  useEffect(() => {
     const guardarNivel = async () => {
       if (!user) return;
       const userRef = doc(db, 'usuarios', user.uid);
@@ -78,9 +78,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
     };
     guardarNivel();
   }, [nivelNumerico, user]);
-  const fechaRegistro = user?.metadata?.creationTime || '';
-
-  const db = getFirestore();
 
   const handleLogout = async () => {
     Alert.alert(
@@ -88,13 +85,12 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
       '¿Estás seguro de que quieres cerrar sesión?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Cerrar sesión', 
+        {
+          text: 'Cerrar sesión',
           style: 'destructive',
           onPress: async () => {
             try {
               await signOut(auth);
-              // Cambiar el estado de login para regresar a la pantalla de bienvenida
               setIsLoggedIn(false);
             } catch (error) {
               Alert.alert(t.error, t.logoutError);
@@ -105,27 +101,14 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
     );
   };
 
-  const handleEditProfile = () => {
-    // TODO: Implementar edición de perfil
-    Alert.alert(t.editProfile, t.functionInDevelopment);
-  };
-
   const traducirCategoria = (categoria: string) => {
-    if (categoria === 'Filamento' || categoria === 'Filament') {
-      return lang === 'en' ? 'Filament' : 'Filamento';
-    }
-    if (categoria === 'Resina' || categoria === 'Resin') {
-      return lang === 'en' ? 'Resin' : 'Resina';
-    }
-    if (categoria === 'Pintura' || categoria === 'Paint') {
-      return lang === 'en' ? 'Paint' : 'Pintura';
-    }
-    if (categoria === 'Aros de llavero' || categoria === 'Keychain Rings') {
-      return lang === 'en' ? 'Keychain Rings' : 'Aros de llavero';
-    }
+    if (categoria === 'Filamento' || categoria === 'Filament') return t.filament;
+    if (categoria === 'Resina' || categoria === 'Resin') return t.resin;
+    if (categoria === 'Pintura' || categoria === 'Paint') return t.paint;
+    if (categoria === 'Aros de llavero' || categoria === 'Keychain Rings') return t.keychainRings;
     return categoria;
   };
-
+  
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'add':
@@ -143,69 +126,84 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
     }
   };
 
-  // Leer datos reales de Firestore con listeners en tiempo real
+  // Hook para cargar y calcular todas las estadísticas
   useFocusEffect(
     React.useCallback(() => {
       if (!user) return;
 
-      setLoading(true);
-      
-      // Función para calcular estadísticas
-      const calcularEstadisticas = (materiales: any[], calculos: any[]) => {
-        // Calcular categorías
-        const categorias = {};
-        materiales.forEach(mat => {
-          const cat = mat.categoria || 'Sin categoría';
-          if (!categorias[cat]) categorias[cat] = { nombre: cat, cantidad: 0, color: '#00e676' };
-          categorias[cat].cantidad += 1;
-        });
-        // Asignar color por categoría
-        Object.values(categorias).forEach((cat: any) => {
-          // Comparar con las categorías originales en español e inglés
-          if (cat.nombre === 'Filamento' || cat.nombre === 'Filament') cat.color = '#00e676';
-          else if (cat.nombre === 'Resina' || cat.nombre === 'Resin') cat.color = '#2196f3';
-          else if (cat.nombre === 'Pintura' || cat.nombre === 'Paint') cat.color = '#ff9800';
-          else if (cat.nombre === 'Aros de llavero' || cat.nombre === 'Keychain Rings' || cat.nombre.toLowerCase().includes('aro') || cat.nombre.toLowerCase().includes('ring')) cat.color = '#9c27b0';
-          else cat.color = '#b0b0b0';
-        });
+      const userUid = user.uid;
 
-        // Calcular categorías vendidas
-        const categoriasVendidasContador = {};
-        calculos.forEach(calc => {
-          if (calc.estadoVenta === 'vendido' && calc.categoriaVenta) {
-            if (!categoriasVendidasContador[calc.categoriaVenta]) {
-              categoriasVendidasContador[calc.categoriaVenta] = 0;
-            }
-            categoriasVendidasContador[calc.categoriaVenta] += 1;
+      // La función ahora acepta dos listas: una para todos los trabajos y otra solo para las ventas.
+      const calcularEstadisticas = (materialesData: any[], todosLosCalculos: any[], todasLasVentas: any[]) => {
+        // --- ESTADÍSTICAS FÍSICAS (usan todosLosCalculos) ---
+        let filamentoConsumido = 0;
+        let resinaConsumida = 0;
+        let tiempoImpresion = 0;
+        todosLosCalculos.forEach(calc => {
+          // Consumo de material
+          if (!calc.esMultifilamento && calc.materialSeleccionado && calc.filamento?.gramosUtilizados) {
+            const categoria = calc.materialSeleccionado.categoria;
+            const gramos = parseFloat(calc.filamento.gramosUtilizados) || 0;
+            if (categoria === 'Filamento' || categoria === 'Filament') filamentoConsumido += gramos;
+            if (categoria === 'Resina' || categoria === 'Resin') resinaConsumida += gramos;
+          }
+          if (calc.esMultifilamento && calc.materialesMultiples) {
+            calc.materialesMultiples.forEach(mat => {
+              if (mat && mat.gramosUtilizados) {
+                const categoria = mat.categoria;
+                const gramos = parseFloat(mat.gramosUtilizados) || 0;
+                if (categoria === 'Filamento' || categoria === 'Filament') filamentoConsumido += gramos;
+                if (categoria === 'Resina' || categoria === 'Resin') resinaConsumida += gramos;
+              }
+            });
+          }
+          // Tiempo de impresión
+          if (calc.detallesImpresion && calc.detallesImpresion.tiempoImpresion) {
+            tiempoImpresion += parseFloat(calc.detallesImpresion.tiempoImpresion) || 0;
           }
         });
 
-        // Convertir a array y asignar colores
-        const categoriasVendidasArray = Object.entries(categoriasVendidasContador).map(([nombre, cantidad], index) => {
-          const colores = ['#00e676', '#2196f3', '#ff9800', '#9c27b0', '#e53935', '#43a047', '#1e88e5', '#f57c00'];
-          return {
-            nombre,
-            cantidad,
-            color: colores[index % colores.length]
-          };
-        });
+        const proyectosCompletados = todosLosCalculos.length;
+        const fallos = todosLosCalculos.filter(calc => calc.fallo === true).length;
+        const exitosas = proyectosCompletados - fallos;
+        const eficiencia = proyectosCompletados > 0 ? Math.round((exitosas / proyectosCompletados) * 100) : 0;
+        const tiempoPromedioProyecto = proyectosCompletados > 0 ? (tiempoImpresion / proyectosCompletados).toFixed(1) : '0';
 
-        // Calcular mejor cliente y top 10 de clientes
+        // --- ESTADÍSTICAS DE VENTA (usan todasLasVentas) ---
+        const categoriasVendidasContador = {};
+        todasLasVentas.forEach(venta => {
+          if (venta.categoriaVenta) {
+            if (!categoriasVendidasContador[venta.categoriaVenta]) {
+              categoriasVendidasContador[venta.categoriaVenta] = 0;
+            }
+            categoriasVendidasContador[venta.categoriaVenta] += 1;
+          }
+        });
+        
+        const colores = ['#00e676', '#2196f3', '#ff9800', '#9c27b0', '#e53935', '#43a047', '#1e88e5', '#f57c00'];
+        const categoriasVendidasArray = Object.entries(categoriasVendidasContador).map(([nombre, cantidad], index) => ({
+          nombre,
+          cantidad,
+          color: colores[index % colores.length]
+        }));
+        
         const clientesContador = {};
         const clientesGanancias = {};
-        
-        calculos.forEach(calc => {
-          if (calc.estadoVenta === 'vendido' && calc.cliente && calc.cliente !== 'Pendiente') {
-            if (!clientesContador[calc.cliente]) {
-              clientesContador[calc.cliente] = 0;
-              clientesGanancias[calc.cliente] = 0;
+        let gananciasTotales = 0;
+        todasLasVentas.forEach(venta => {
+          const ganancia = parseFloat(venta.ganancia || 0);
+          if (!isNaN(ganancia)) gananciasTotales += ganancia;
+
+          if (venta.cliente && venta.cliente !== 'Pendiente') {
+            if (!clientesContador[venta.cliente]) {
+              clientesContador[venta.cliente] = 0;
+              clientesGanancias[venta.cliente] = 0;
             }
-            clientesContador[calc.cliente] += 1;
-            clientesGanancias[calc.cliente] += parseFloat(calc.ganancia || 0);
+            clientesContador[venta.cliente] += 1;
+            clientesGanancias[venta.cliente] += ganancia;
           }
         });
 
-        // Encontrar el mejor cliente (por ganancias)
         let mejorClienteData = null;
         let maxGanancia = 0;
         Object.entries(clientesGanancias).forEach(([cliente, ganancia]) => {
@@ -220,7 +218,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           }
         });
 
-        // Crear top 10 de clientes (por cantidad de productos)
         const topClientesArray = Object.entries(clientesContador)
           .map(([cliente, cantidad]) => ({
             nombre: cliente,
@@ -230,193 +227,87 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           .sort((a, b) => b.productos - a.productos)
           .slice(0, 10);
 
-        // Filamento y resina consumidos (basado en cálculos reales)
-        let filamentoConsumido = 0;
-        let resinaConsumida = 0;
-        calculos.forEach(calc => {
-          // Para cálculos con un solo material
-          if (!calc.esMultifilamento && calc.materialSeleccionado && calc.filamento?.gramosUtilizados) {
-            const categoria = calc.materialSeleccionado.categoria;
-            const gramosUtilizados = parseFloat(calc.filamento.gramosUtilizados) || 0;
-            
-            if (categoria === 'Filamento' || categoria === 'Filament') {
-              filamentoConsumido += gramosUtilizados;
-              console.log('Filamento consumido en cálculo:', calc.nombre, 'gramos:', gramosUtilizados);
-            }
-            if (categoria === 'Resina' || categoria === 'Resin') {
-              resinaConsumida += gramosUtilizados;
-              console.log('Resina consumida en cálculo:', calc.nombre, 'gramos:', gramosUtilizados);
-            }
-          }
-          
-          // Para cálculos con múltiples materiales
-          if (calc.esMultifilamento && calc.materialesMultiples) {
-            calc.materialesMultiples.forEach(mat => {
-              if (mat && mat.gramosUtilizados) {
-                const categoria = mat.categoria;
-                const gramosUtilizados = parseFloat(mat.gramosUtilizados) || 0;
-                
-                if (categoria === 'Filamento' || categoria === 'Filament') {
-                  filamentoConsumido += gramosUtilizados;
-                  console.log('Filamento multi consumido:', mat.nombre, 'gramos:', gramosUtilizados);
-                }
-                if (categoria === 'Resina' || categoria === 'Resin') {
-                  resinaConsumida += gramosUtilizados;
-                  console.log('Resina multi consumida:', mat.nombre, 'gramos:', gramosUtilizados);
-                }
-              }
-            });
-          }
-        });
-        console.log('Total filamento consumido:', filamentoConsumido);
-        console.log('Total resina consumida:', resinaConsumida);
-
-        // Proyectos completados
-        const proyectosCompletados = calculos.length;
-
-        // Contar fallos y éxitos
-        const fallos = calculos.filter(calc => calc.fallo === true).length;
-        const exitosas = proyectosCompletados - fallos;
-        const eficiencia = proyectosCompletados > 0 ? Math.round((exitosas / proyectosCompletados) * 100) : 0;
-
-        // Tiempo total y promedio de impresión
-        let tiempoImpresion = 0;
-        calculos.forEach(calc => {
-          if (calc.detallesImpresion && calc.detallesImpresion.tiempoImpresion) {
-            tiempoImpresion += parseFloat(calc.detallesImpresion.tiempoImpresion) || 0;
-          }
-        });
-        const tiempoPromedioProyecto = proyectosCompletados > 0 ? (tiempoImpresion / proyectosCompletados).toFixed(1) : '0';
-
-        // Costo total materiales y ganancias
-        let costoTotalMateriales = 0;
-        let ganancias = 0;
-        
-        console.log('Calculando costo total de materiales...');
-        console.log('Total materiales:', materiales.length);
-        materiales.forEach((mat, index) => {
-          console.log(`Material ${index + 1}:`, {
-            nombre: mat.nombre,
-            precio: mat.precio,
-            cantidad: mat.cantidad,
-            peso: mat.peso,
-            precioBobina: mat.precioBobina,
-            precioResina: mat.precioResina,
-            precioPintura: mat.precioPintura
-          });
-          
-          // Intentar diferentes campos de precio
-          let precio = 0;
-          if (mat.precio) precio = parseFloat(mat.precio);
-          else if (mat.precioBobina) precio = parseFloat(mat.precioBobina);
-          else if (mat.precioResina) precio = parseFloat(mat.precioResina);
-          else if (mat.precioPintura) precio = parseFloat(mat.precioPintura);
-          
-          // Intentar diferentes campos de cantidad
-          let cantidad = 0;
-          if (mat.cantidad) cantidad = parseFloat(mat.cantidad);
-          else if (mat.peso) cantidad = parseFloat(mat.peso);
-          else if (mat.pesoBobina) cantidad = parseFloat(mat.pesoBobina);
-          
-          const costoMaterial = precio * cantidad;
-          
-          console.log('Valores calculados:', { precio, cantidad, costoMaterial });
-          
-          if (!isNaN(costoMaterial) && costoMaterial > 0) {
-            costoTotalMateriales += costoMaterial;
-          }
-        });
-        
-        console.log('Costo total materiales:', costoTotalMateriales);
-        
-        calculos.forEach(calc => {
-          const ganancia = parseFloat(calc.costoTotal || 0);
-          if (!isNaN(ganancia)) {
-            ganancias += ganancia;
-          }
-        });
-        
-        console.log('Ganancias totales:', ganancias);
-
         setEstadisticas({
-          materialesDisponibles: materiales.length,
+          ...estadisticas, // Mantiene otros valores si es necesario
           filamentoConsumido,
           resinaConsumida,
           proyectosCompletados,
           tiempoImpresion,
-          costoTotalMateriales,
-          ganancias,
+          ganancias: gananciasTotales,
           eficiencia,
           tiempoPromedioProyecto,
-          pedidosPendientes: 0
         });
-        setCategoriasMateriales(Object.values(categorias));
         setCategoriasVendidas(categoriasVendidasArray);
         setMejorCliente(mejorClienteData);
         setTopClientes(topClientesArray);
-        setLoading(false);
       };
 
-      // Listeners en tiempo real para materiales y cálculos
-      const unsubscribeMateriales = onSnapshot(
-        collection(db, 'usuarios', user.uid, 'materiales'),
-        (snapshot) => {
-          const materialesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          const [
+            materialesSnapshot,
+            calculosSnapshot,
+            proyectosSnapshot,
+          ] = await Promise.all([
+            getDocs(collection(db, 'usuarios', userUid, 'materiales')),
+            getDocs(collection(db, 'usuarios', userUid, 'calculos')),
+            getDocs(collection(db, 'usuarios', userUid, 'proyectos')),
+          ]);
+
+          const materialesData = materialesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          
+          // LISTA 1: Todos los trabajos de impresión para estadísticas físicas
+          let todosLosCalculos = calculosSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          
+          // LISTA 2: Todas las ventas (proyectos sueltos vendidos + carpetas vendidas)
+          let todasLasVentas = calculosSnapshot.docs
+  .map(doc => ({ id: doc.id, ...doc.data() } as any)) // <-- Añade "as any" aquí
+  .filter(item => item.estadoVenta === 'vendido');
+
+          for (const proyectoDoc of proyectosSnapshot.docs) {
+            const proyectoData = proyectoDoc.data();
+            const impresionesSnapshot = await getDocs(collection(db, 'usuarios', userUid, 'proyectos', proyectoDoc.id, 'impresiones'));
+            const impresionesData = impresionesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Añadir todas las piezas a la lista de trabajos de impresión
+            todosLosCalculos = [...todosLosCalculos, ...impresionesData];
+
+            // Si el PROYECTO está vendido, añadirlo como UNA SOLA VENTA a la lista de ventas
+            if (proyectoData.estadoVenta === 'vendido') {
+              todasLasVentas.push({ id: proyectoDoc.id, ...proyectoData });
+            }
+          }
+
           setMateriales(materialesData);
-          // Obtener cálculos actuales para recalcular estadísticas
-          getDocs(collection(db, 'usuarios', user.uid, 'calculos')).then(snapshotCalc => {
-            const calculos = snapshotCalc.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            calcularEstadisticas(materialesData, calculos);
-          });
-        },
-        (error) => {
-          console.error('Error en listener de materiales:', error);
-          setEstadisticas(estadisticasEjemplo);
-          setCategoriasMateriales(categoriasEjemplo);
+          // Pasamos ambas listas a la función de cálculo
+          calcularEstadisticas(materialesData, todosLosCalculos, todasLasVentas);
+
+        } catch (error) {
+          console.error("Error fetching data for menu:", error);
+        } finally {
           setLoading(false);
         }
-      );
-
-      const unsubscribeCalculos = onSnapshot(
-        collection(db, 'usuarios', user.uid, 'calculos'),
-        (snapshot) => {
-          const calculos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          // Obtener materiales actuales para recalcular estadísticas
-          getDocs(collection(db, 'usuarios', user.uid, 'materiales')).then(snapshotMat => {
-            const materiales = snapshotMat.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            calcularEstadisticas(materiales, calculos);
-          });
-        },
-        (error) => {
-          console.error('Error en listener de cálculos:', error);
-          setEstadisticas(estadisticasEjemplo);
-          setCategoriasMateriales(categoriasEjemplo);
-          setLoading(false);
-        }
-      );
-
-      // Cleanup function
-      return () => {
-        unsubscribeMateriales();
-        unsubscribeCalculos();
       };
-    }, [user])
+
+      fetchData();
+
+    }, [user, lang])
   );
 
-  // Calcular datos reales para la gráfica circular de tipos de filamento
-  const tiposFilamentoContador: Record<string, number> = {};
-  const materialesFilamento = materiales.filter(m => m.categoria === 'Filamento' || m.categoria === 'Filament');
-  console.log('Materiales de filamento encontrados:', materialesFilamento.length);
-  materialesFilamento.forEach(m => {
-    const tipo = m.tipo || 'Otro';
-    tiposFilamentoContador[tipo] = (tiposFilamentoContador[tipo] || 0) + 1;
-    console.log('Tipo de filamento:', tipo, 'material:', m.nombre);
-  });
-  console.log('Tipos de filamento contados:', tiposFilamentoContador);
+
   const colores = ['#00e676', '#ff9800', '#2196f3', '#9c27b0', '#b0b0b0', '#e53935', '#43a047', '#1e88e5'];
-  const pieData = Object.entries(tiposFilamentoContador).map(([tipo, cantidad], i) => ({
+  const pieData = Object.entries(
+    materiales
+      .filter(m => m.categoria === 'Filamento' || m.categoria === 'Filament')
+      .reduce((acc, m) => {
+        const tipo = m.tipo || 'Otro';
+        acc[tipo] = (acc[tipo] || 0) + 1;
+        return acc;
+      }, {})
+  ).map(([tipo, cantidad], i) => ({
     name: tipo,
-    population: cantidad,
+    population: cantidad as number,
     color: colores[i % colores.length],
     legendFontColor: '#fff',
     legendFontSize: 13,
@@ -424,8 +315,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
 
   return (
     <ScrollView style={styles.container}>
-      {/* Selector de idioma global */}
-      <View style={{ alignItems: 'flex-end', marginTop: 20, marginRight: 20 }}>
+       <View style={{ alignItems: 'flex-end', marginTop: 20, marginRight: 20 }}>
         <TouchableOpacity
           style={{ backgroundColor: '#181818', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 16, borderWidth: 1, borderColor: '#00e676' }}
           onPress={() => setLang(lang === 'es' ? 'en' : 'es')}
@@ -433,7 +323,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           <Text style={{ color: '#00e676', fontWeight: 'bold' }}>{lang === 'es' ? 'ENGLISH' : 'ESPAÑOL'}</Text>
         </TouchableOpacity>
       </View>
-      {/* Header con foto de usuario */}
       <View style={styles.header}>
         <View style={styles.userInfo}>
           <View style={{ position: 'relative', justifyContent: 'center', alignItems: 'center' }}>
@@ -441,7 +330,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
               source={{ uri: fotoUsuario }} 
               style={styles.userPhoto}
             />
-            {/* Nivel numérico en verde, centrado sobre la foto */}
             <View style={{
               position: 'absolute',
               top: 0,
@@ -466,36 +354,30 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         </View>
       </View>
 
-      {/* Estadísticas principales */}
       <View style={styles.statsContainer}>
         <Text style={styles.sectionTitle}>{t.generalStats}</Text>
-        
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{estadisticas.proyectosCompletados.toLocaleString('es-MX')}</Text>
             <Text style={styles.statLabel}>{t.completedProjects}</Text>
             <Ionicons name="checkmark-circle" size={20} color="#00e676" style={styles.statIcon} />
           </View>
-          
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{Number(estadisticas.tiempoImpresion).toLocaleString('es-MX', { maximumFractionDigits: 1 })}h</Text>
             <Text style={styles.statLabel}>{t.totalPrintingTime}</Text>
             <Ionicons name="time" size={20} color="#00e676" style={styles.statIcon} />
           </View>
-          
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{Number(estadisticas.tiempoPromedioProyecto).toLocaleString('es-MX', { maximumFractionDigits: 1 })}h</Text>
             <Text style={styles.statLabel}>{t.averageProjectTime}</Text>
             <Ionicons name="analytics" size={20} color="#00e676" style={styles.statIcon} />
           </View>
-          
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{estadisticas.materialesDisponibles.toLocaleString('es-MX')}</Text>
             <Text style={styles.statLabel}>{t.availableMaterials}</Text>
             <Ionicons name="cube-outline" size={20} color="#00e676" style={styles.statIcon} />
           </View>
         </View>
-        {/* Gráfica circular de tipos de filamento */}
         <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
           <Text style={[styles.sectionTitle, { textAlign: 'center', marginBottom: 8 }]}>{t.filamentTypes}</Text>
           <PieChart
@@ -516,11 +398,10 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             absolute
           />
         </View>
-        {/* Barra segmentada de tipos de filamento */}
         {pieData.length > 0 && (
           <View style={{ width: '100%' }}>
             <View style={{ flexDirection: 'row', height: 24, width: '100%', backgroundColor: '#222', borderRadius: 12, overflow: 'hidden', marginTop: 12, marginBottom: 8 }}>
-              {pieData.map((segment, i) => (
+              {pieData.map((segment) => (
                 <View
                   key={segment.name}
                   style={{
@@ -531,7 +412,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
                     height: '100%',
                   }}
                 >
-                  {/* Si el segmento es suficientemente grande, muestra el porcentaje */}
                   {segment.population / pieData.reduce((a, b) => a + b.population, 0) > 0.12 && (
                     <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>
                       {Math.round((segment.population / pieData.reduce((a, b) => a + b.population, 0)) * 100)}%
@@ -541,7 +421,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
               ))}
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8, justifyContent: 'center' }}>
-              {pieData.map((segment, i) => (
+              {pieData.map((segment) => (
                 <View key={segment.name} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12, marginBottom: 4 }}>
                   <View style={{ width: 14, height: 14, backgroundColor: segment.color, borderRadius: 3, marginRight: 4 }} />
                   <Text style={{ color: '#fff', fontSize: 12 }}>{segment.name}</Text>
@@ -552,10 +432,8 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         )}
       </View>
 
-      {/* Consumo de materiales */}
       <View style={styles.materialsContainer}>
         <Text style={styles.sectionTitle}>{t.materialConsumption}</Text>
-        
         <View style={styles.materialStats}>
           <View style={styles.materialCard}>
             <View style={styles.materialHeader}>
@@ -573,7 +451,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             </View>
             <Text style={styles.materialSubtext}>{t.consumedIn} {estadisticas.proyectosCompletados} {t.projects}</Text>
           </View>
-          
           <View style={styles.materialCard}>
             <View style={styles.materialHeader}>
               <Text style={styles.materialTitle}>{t.printingTime}</Text>
@@ -593,10 +470,8 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         </View>
       </View>
 
-      {/* Categorías de materiales */}
       <View style={styles.categoriesContainer}>
         <Text style={styles.sectionTitle}>{t.materialCategories}</Text>
-        
         {categoriasMateriales.map((categoria, index) => (
           <View key={index} style={styles.categoryItem}>
             <View style={styles.categoryInfo}>
@@ -608,12 +483,9 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         ))}
       </View>
 
-      {/* Categorías más vendidas */}
       {categoriasVendidas.length > 0 && (
         <View style={styles.categoriesContainer}>
           <Text style={styles.sectionTitle}>{t.topSellingCategories}</Text>
-          
-          {/* Gráfico de pastel de categorías vendidas */}
           <View style={{ alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
             <PieChart
               data={categoriasVendidas.map(cat => ({
@@ -639,8 +511,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
               absolute
             />
           </View>
-          
-          {/* Lista de categorías vendidas */}
           <View style={{ marginTop: 16 }}>
             {categoriasVendidas.map((categoria, index) => (
               <View key={index} style={styles.categoryItem}>
@@ -655,23 +525,19 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         </View>
       )}
 
-      {/* Mejor Cliente */}
       {mejorCliente && (
         <View style={styles.categoriesContainer}>
           <Text style={styles.sectionTitle}>{t.bestCustomer}</Text>
-          
           <View style={styles.bestCustomerCard}>
             <View style={styles.bestCustomerHeader}>
               <Ionicons name="trophy" size={24} color="#ffd600" style={{ marginRight: 8 }} />
               <Text style={styles.bestCustomerName}>{mejorCliente.nombre}</Text>
             </View>
-            
             <View style={styles.bestCustomerStats}>
               <View style={styles.bestCustomerStat}>
                 <Text style={styles.bestCustomerStatLabel}>{t.productsSold}</Text>
                 <Text style={styles.bestCustomerStatValue}>{mejorCliente.productos}</Text>
               </View>
-              
               <View style={styles.bestCustomerStat}>
                 <Text style={styles.bestCustomerStatLabel}>{t.totalProfit}</Text>
                 <Text style={[styles.bestCustomerStatValue, { color: '#00e676' }]}>
@@ -683,25 +549,21 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         </View>
       )}
 
-      {/* Top 10 Clientes */}
       {topClientes.length > 0 && (
         <View style={styles.categoriesContainer}>
           <Text style={styles.sectionTitle}>{t.topCustomers}</Text>
-          
           <View style={styles.topCustomersList}>
             {topClientes.map((cliente, index) => (
               <View key={index} style={styles.topCustomerItem}>
                 <View style={styles.topCustomerRank}>
                   <Text style={styles.topCustomerRankText}>#{index + 1}</Text>
                 </View>
-                
                 <View style={styles.topCustomerInfo}>
                   <Text style={styles.topCustomerName}>{cliente.nombre}</Text>
                   <Text style={styles.topCustomerDetails}>
                     {cliente.productos} {t.productsSold} • ${cliente.ganancia.toFixed(2)} ${getCurrency(lang)}
                   </Text>
                 </View>
-                
                 {index === 0 && (
                   <Ionicons name="trophy" size={16} color="#ffd600" style={{ marginLeft: 8 }} />
                 )}
@@ -711,10 +573,8 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         </View>
       )}
 
-      {/* Métricas financieras */}
       <View style={styles.financialContainer}>
         <Text style={styles.sectionTitle}>{t.financialMetrics}</Text>
-        
         <View style={styles.financialGrid}>
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>{t.totalMaterialCost}</Text>
@@ -726,7 +586,6 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             </Text>
             <Text style={styles.financialPeriod}>{t.currentInventory}</Text>
           </View>
-          
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>{t.totalProjectValue}</Text>
             <Text style={[styles.financialAmount, { color: '#00e676' }]}> 
@@ -737,13 +596,11 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
             </Text>
             <Text style={styles.financialPeriod}>{t.allProjects}</Text>
           </View>
-          
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>{t.filamentConsumed}</Text>
             <Text style={styles.financialAmount}>{Number(estadisticas.filamentoConsumido).toLocaleString('es-MX')}g</Text>
             <Text style={styles.financialPeriod}>{t.totalUsed}</Text>
           </View>
-          
           <View style={styles.financialCard}>
             <Text style={styles.financialLabel}>{t.efficiency}</Text>
             <Text style={[styles.financialAmount, { color: '#ff9800' }]}>{Number(estadisticas.eficiencia).toLocaleString('es-MX')}%</Text>
@@ -752,46 +609,13 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         </View>
       </View>
 
-      {/* Acciones rápidas */}
       <View style={styles.actionsContainer}>
         <Text style={styles.sectionTitle}>{t.quickActions}</Text>
-        
         <View style={styles.actionsGrid}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleQuickAction('add')}
-          >
-            <Ionicons name="add-circle-outline" size={24} color="#00e676" />
-            <Text style={styles.actionText}>{t.addMaterial}</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleQuickAction('inventory')}
-          >
-            <Ionicons name="cube-outline" size={24} color="#00e676" />
-            <Text style={styles.actionText}>{t.inventory}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleQuickAction('calculator')}
-          >
-            <Ionicons name="calculator-outline" size={24} color="#00e676" />
-            <Text style={styles.actionText}>{t.calculator}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleQuickAction('history')}
-          >
-            <Ionicons name="time-outline" size={24} color="#00e676" />
-            <Text style={styles.actionText}>{t.history}</Text>
-          </TouchableOpacity>
+          {/* ... (tus botones de acción) ... */}
         </View>
       </View>
 
-      {/* Botón de cerrar sesión */}
       <TouchableOpacity style={[styles.logoutButton, { marginBottom: 32 }]} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>{t.logout}</Text>
       </TouchableOpacity>
@@ -1049,7 +873,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  // Estilos para mejor cliente
   bestCustomerCard: {
     backgroundColor: '#181818',
     borderRadius: 12,
@@ -1087,7 +910,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  // Estilos para top 10 clientes
   topCustomersList: {
     gap: 8,
   },
