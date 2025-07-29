@@ -453,6 +453,16 @@ const AddMaterialScreen: React.FC = () => {
   // Lógica para agregar nueva categoría personalizada usando el hook
   const handleAgregarCategoria = async () => {
     if (!nuevaCategoria.nombre) return;
+    
+    // Verificar si la categoría ya existe
+    const categoriasExistentes = [...CATEGORIAS_BASE, ...categoriasPersonalizadas];
+    if (categoriasExistentes.some(cat => cat.toLowerCase() === nuevaCategoria.nombre.toLowerCase())) {
+      setAlertType('error');
+      setAlertMessage(t.categoryAlreadyExists || 'Esta categoría ya existe');
+      setShowAlert(true);
+      return;
+    }
+    
     try {
       const nuevaCat = { 
         ...nuevaCategoria, 
@@ -542,6 +552,16 @@ const AddMaterialScreen: React.FC = () => {
   const agregarMarcaFirestore = async (nombreMarca: string) => {
     const user = auth.currentUser;
     if (!user || !material.categoria || !nombreMarca) return;
+    
+    // Verificar si la marca ya existe
+    const marcasExistentes = getMarcasDisponibles().filter(m => m !== 'Agregar +');
+    if (marcasExistentes.some(marca => marca.toLowerCase() === nombreMarca.toLowerCase())) {
+      setAlertType('error');
+      setAlertMessage(t.brandAlreadyExists || 'Esta marca ya existe');
+      setShowAlert(true);
+      return;
+    }
+    
     let ref;
     if (CATEGORIAS_BASE.includes(material.categoria)) {
       ref = collection(db, 'usuarios', user.uid, 'categoriasBase', material.categoria, 'marcas');
@@ -624,8 +644,23 @@ const AddMaterialScreen: React.FC = () => {
   const agregarTipoPersonalizadoFirestore = async (nombreTipo: string) => {
     const user = auth.currentUser;
     if (!user || !material.categoria || !nombreTipo) return;
+    
+    // Verificar si el tipo ya existe
+    const tiposExistentes = material.categoria === 'Filamento' 
+      ? [...tiposFilamento.map(t => t.tipo), ...tiposPersonalizados]
+      : tiposPersonalizados;
+    
+    if (tiposExistentes.some(tipo => tipo.toLowerCase() === nombreTipo.toLowerCase())) {
+      setAlertType('error');
+      setAlertMessage(t.typeAlreadyExists || 'Este tipo ya existe');
+      setShowAlert(true);
+      return;
+    }
+    
     const ref = collection(db, 'usuarios', user.uid, 'categoriasPersonalizadas', material.categoria, 'tipos');
     await addDoc(ref, { nombre: nombreTipo });
+    cargarTiposPersonalizadosFirestore(material.categoria);
+    setMaterial(prev => ({ ...prev, tipo: nombreTipo }));
   };
 
   // 2. Función para cargar tipos personalizados desde Firestore
@@ -954,7 +989,11 @@ const AddMaterialScreen: React.FC = () => {
                 onAdd={async (value) => {
                   await agregarMarcaFirestore(value);
                   setMostrarNuevaMarca(false);
-                  setMaterial(prev => ({ ...prev, marca: '' }));
+                  // Solo limpiar la marca si hubo error, sino mantener la selección
+                  const marcasExistentes = getMarcasDisponibles().filter(m => m !== 'Agregar +');
+                  if (!marcasExistentes.some(marca => marca.toLowerCase() === value.toLowerCase())) {
+                    setMaterial(prev => ({ ...prev, marca: value }));
+                  }
                 }}
                 onCancel={() => setMostrarNuevaMarca(false)}
                 placeholder={t.brandName}
@@ -1120,21 +1159,19 @@ const AddMaterialScreen: React.FC = () => {
               )}
               {mostrarNuevoTipo && (
                 <AddForm
-                  label={t.newType}
-                  onAdd={(value) => {
-                    if (value.trim() && !tiposPersonalizados.includes(value.trim())) {
-                      setTiposPersonalizados([...tiposPersonalizados, value.trim()]);
-                      setMaterial({ ...material, tipo: value.trim() });
-                      setMostrarNuevoTipo(false);
-                      agregarTipoPersonalizadoFirestore(value.trim());
-                    }
-                  }}
-                  onCancel={() => setMostrarNuevoTipo(false)}
-                  placeholder={`${t.nameOf}${material.categoria.toLowerCase()}`}
-                  visible={mostrarNuevoTipo}
-                  addLabel={t.add}
-                  cancelLabel={t.cancel}
-                />
+                label={t.newType}
+                onAdd={async (value) => {
+                  if (value.trim()) {
+                    await agregarTipoPersonalizadoFirestore(value.trim());
+                    setMostrarNuevoTipo(false);
+                  }
+                }}
+                onCancel={() => setMostrarNuevoTipo(false)}
+                placeholder={`${t.nameOf}${material.categoria.toLowerCase()}`}
+                visible={mostrarNuevoTipo}
+                addLabel={t.add}
+                cancelLabel={t.cancel}
+              />
               )}
               {/* Botón Borrar y confirmación para tipos personalizados */}
               {modoEliminarTipo && tiposSeleccionados.length > 0 && (
@@ -1423,12 +1460,10 @@ const AddMaterialScreen: React.FC = () => {
                   </View>
                   <AddForm
                     label={t.newType}
-                    onAdd={(value) => {
-                      if (value.trim() && !tiposPersonalizados.includes(value.trim())) {
-                        setTiposPersonalizados([...tiposPersonalizados, value.trim()]);
-                        setMaterial({ ...material, tipo: value.trim() });
+                    onAdd={async (value) => {
+                      if (value.trim()) {
+                        await agregarTipoPersonalizadoFirestore(value.trim());
                         setMostrarNuevoTipo(false);
-                        agregarTipoPersonalizadoFirestore(value.trim());
                       }
                     }}
                     onCancel={() => setMostrarNuevoTipo(false)}

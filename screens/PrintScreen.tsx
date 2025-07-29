@@ -596,60 +596,78 @@ const PrintScreen: React.FC = () => {
       setClientes([]);
     }
   };
+// En PrintScreen.tsx
 
-  // Cargar proyectos y sueltos optimizado
-  const cargarProyectosYSueltos = async () => {
+const cargarProyectosYSueltos = async () => {
     setLoading(true);
     setError(null);
     try {
-      const user = auth.currentUser;
-      if (!user) {
+        const user = auth.currentUser;
+        if (!user) {
+            setProyectos([]);
+            setProyectosArchivados([]);
+            setProyectosSueltos([]);
+            setLoading(false);
+            return;
+        }
+
+        // Cargar proyectos, sueltos y materiales en paralelo
+        const [proyectosSnap, sueltosSnap] = await Promise.all([
+            getDocs(collection(db, 'usuarios', user.uid, 'proyectos')),
+            getDocs(collection(db, 'usuarios', user.uid, 'calculos'))
+        ]);
+        
+        // --- INICIO DE LA MODIFICACIÓN ---
+
+        // Creamos un array de promesas para procesar cada proyecto
+        const carpetasPromises = proyectosSnap.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+
+            // Por cada proyecto, obtenemos sus impresiones
+            const impresionesSnap = await getDocs(collection(db, 'usuarios', user.uid, 'proyectos', docSnap.id, 'impresiones'));
+            const impresiones = impresionesSnap.docs.map(doc => doc.data());
+
+            // Calculamos las estadísticas aquí mismo, en el padre
+            const estadisticas = {
+                costoTotal: impresiones.reduce((sum, imp) => sum + (parseFloat(imp.costoTotal) || 0), 0),
+                materiales: Array.from(new Set(impresiones.map(imp => imp.materialSeleccionado?.nombre).filter(Boolean))),
+                cantidadImpresiones: impresiones.length
+            };
+
+            // Devolvemos el objeto del proyecto original, pero con las estadísticas ya incluidas
+            return {
+                id: docSnap.id,
+                ...data,
+                archivado: data.archivado || false,
+                estadisticas: estadisticas, // <-- Dato clave que pasaremos como prop
+            };
+        });
+
+        // Esperamos a que todas las promesas se resuelvan
+        const carpetas = await Promise.all(carpetasPromises);
+
+        // --- FIN DE LA MODIFICACIÓN ---
+
+        const sueltos = sueltosSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            estadoVenta: doc.data().estadoVenta || 'pendiente'
+        }));
+
+        setProyectos(carpetas.filter(p => !p.archivado));
+        setProyectosArchivados(carpetas.filter(p => p.archivado));
+        setProyectosSueltos(sueltos);
+
+        await cargarMaterialesActualizados();
+        setLoading(false);
+    } catch (e) {
+        setError(t.projectsLoadError);
         setProyectos([]);
         setProyectosArchivados([]);
         setProyectosSueltos([]);
         setLoading(false);
-        return;
-      }
-      
-      // Cargar proyectos, sueltos y materiales en paralelo
-      const [proyectosSnap, sueltosSnap] = await Promise.all([
-        getDocs(collection(db, 'usuarios', user.uid, 'proyectos')),
-        getDocs(collection(db, 'usuarios', user.uid, 'calculos'))
-      ]);
-      
-      const carpetas = proyectosSnap.docs.map(docSnap => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          ...data,
-          archivado: data.archivado || false,
-        };
-      });
-      
-      const sueltos = sueltosSnap.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data(),
-        // Asegurar que los proyectos sueltos tengan estado de venta por defecto
-        estadoVenta: doc.data().estadoVenta || 'pendiente'
-      }));
-      
-      setProyectos(carpetas.filter(p => !p.archivado));
-      setProyectosArchivados(carpetas.filter(p => p.archivado));
-      setProyectosSueltos(sueltos);
-      
-      // Cargar materiales actualizados
-      await cargarMaterialesActualizados();
-      
-      setLoading(false);
-    } catch (e) {
-      setError(t.projectsLoadError);
-      setProyectos([]);
-      setProyectosArchivados([]);
-      setProyectosSueltos([]);
-      setLoading(false);
     }
-  };
-
+};
   // Cargar impresiones de un proyecto optimizado
   const cargarImpresiones = async (proyectoId: string) => {
     setLoading(true);
@@ -1116,7 +1134,31 @@ const PrintScreen: React.FC = () => {
                       <Text style={styles.materialInfoValue}>
                         {(() => {
                           const categoria = calculo.materialSeleccionado.categoria || t.filament;
-                          const cantidad = calculo.filamento?.pesoBobina || '0';
+                          // Calculate total initial stock: grams * initial stock
+                          const materialOriginal = materialesActualizados?.find((m: any) => m.id === calculo.materialSeleccionado.id);
+                          let cantidad = '0';
+                          
+                          if (materialOriginal) {
+                            switch (categoria) {
+                              case t.paint:
+                                cantidad = materialOriginal.cantidad || '0';
+                                break;
+                              case t.keychainRings:
+                                cantidad = materialOriginal.cantidad || '0';
+                                break;
+                              case t.filament:
+                              case t.resin:
+                              default:
+                                // Calculate total initial stock: peso por bobina * cantidad de bobinas
+                                const pesoPorBobina = parseFloat(materialOriginal.peso || materialOriginal.pesoBobina || '0');
+                                const cantidadBobinas = parseFloat(materialOriginal.cantidadInicial || materialOriginal.cantidad || '1');
+                                cantidad = (pesoPorBobina * cantidadBobinas).toString();
+                                break;
+                            }
+                          } else {
+                            cantidad = calculo.filamento?.pesoBobina || '0';
+                          }
+                          
                           switch (categoria) {
                             case t.paint:
                               return `${cantidad}ml`;
@@ -1193,7 +1235,31 @@ const PrintScreen: React.FC = () => {
                             <Text style={styles.materialInfoValue}>
                               {(() => {
                                 const categoria = material.categoria;
-                                const cantidad = material.pesoBobina || material.peso || material.cantidad || '0';
+                                // Calculate total initial stock: grams * initial stock
+                                const materialOriginal = materialesActualizados?.find((m: any) => m.id === material.id);
+                                let cantidad = '0';
+                                
+                                if (materialOriginal) {
+                                  switch (categoria) {
+                                    case t.paint:
+                                      cantidad = materialOriginal.cantidad || '0';
+                                      break;
+                                    case t.keychainRings:
+                                      cantidad = materialOriginal.cantidad || '0';
+                                      break;
+                                    case t.filament:
+                                    case t.resin:
+                                    default:
+                                      // Calculate total initial stock: peso por bobina * cantidad de bobinas
+                                      const pesoPorBobina = parseFloat(materialOriginal.peso || materialOriginal.pesoBobina || '0');
+                                      const cantidadBobinas = parseFloat(materialOriginal.cantidadInicial || materialOriginal.cantidad || '1');
+                                      cantidad = (pesoPorBobina * cantidadBobinas).toString();
+                                      break;
+                                  }
+                                } else {
+                                  cantidad = material.pesoBobina || material.peso || material.cantidad || '0';
+                                }
+                                
                                 switch (categoria) {
                                   case t.paint:
                                     return `${cantidad}ml`;
@@ -1464,7 +1530,7 @@ const PrintScreen: React.FC = () => {
                               calculo.categoriaVenta === categoria && styles.chipActive
                             ]}
                             onPress={() => {
-                              marcarComoVendidoRapido(calculo, categoria, calculo.cliente || 'Cliente');
+                              marcarComoVendidoRapido(calculo, categoria, calculo.cliente || 'Cliente', calculo.precioVenta);
                             }}
                           >
                             <Ionicons 
@@ -1495,7 +1561,7 @@ const PrintScreen: React.FC = () => {
                               calculo.cliente === cliente && styles.chipActive
                             ]}
                             onPress={() => {
-                              marcarComoVendidoRapido(calculo, calculo.categoriaVenta || 'Categoría', cliente);
+                              marcarComoVendidoRapido(calculo, calculo.categoriaVenta || 'Categoría', cliente, calculo.precioVenta);
                             }}
                           >
                             <Ionicons 
@@ -1523,7 +1589,7 @@ const PrintScreen: React.FC = () => {
                           key={index}
                           style={styles.compactDropdownItem}
                           onPress={() => {
-                            marcarComoVendidoRapido(calculo, categoria, calculo.cliente || 'Cliente');
+                            marcarComoVendidoRapido(calculo, categoria, calculo.cliente || 'Cliente', calculo.precioVenta);
                             setCategoriaExpandidaPorProducto(prev => ({
                               ...prev,
                               [calculo.id]: false
@@ -1545,7 +1611,7 @@ const PrintScreen: React.FC = () => {
                           key={index}
                           style={styles.compactDropdownItem}
                           onPress={() => {
-                            marcarComoVendidoRapido(calculo, calculo.categoriaVenta || 'Categoría', cliente);
+                            marcarComoVendidoRapido(calculo, calculo.categoriaVenta || 'Categoría', cliente, calculo.precioVenta);
                             setClienteExpandidoPorProducto(prev => ({
                               ...prev,
                               [calculo.id]: false

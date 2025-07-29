@@ -227,8 +227,15 @@ const HomeScreen: React.FC = () => {
             {t.noMaterials}
           </Text>
         ) : (
-          // Agrupar materiales por categoría (omitir productos sin tipo)
-          Object.entries(materiales.filter(mat => mat.tipo && mat.tipo.trim() !== '').reduce((acc, mat) => {
+          // Agrupar materiales por categoría (permitir pinturas y aros de llavero sin tipo)
+          Object.entries(materiales.filter(mat => {
+            // Permitir materiales con tipo definido
+            if (mat.tipo && mat.tipo.trim() !== '') return true;
+            // Permitir pinturas y aros de llavero aunque no tengan tipo
+            const categoria = mat.categoria || '';
+            return categoria === 'Pintura' || categoria === 'Paint' || 
+                   categoria === 'Aros de llavero' || categoria === 'Keychain Rings';
+          }).reduce((acc, mat) => {
             const cat = mat.categoria || 'Sin categoría';
             if (!acc[cat]) acc[cat] = [];
             acc[cat].push(mat);

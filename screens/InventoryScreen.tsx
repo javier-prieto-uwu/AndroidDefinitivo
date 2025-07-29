@@ -357,14 +357,21 @@ const InventoryScreen: React.FC = () => {
     return materialesOrdenados;
   };
 
-  // Filtro de materiales por búsqueda y omitir productos sin tipo
+  // Filtro de materiales por búsqueda (permitir pinturas y aros de llavero sin tipo)
   const materialesFiltrados = materiales.filter(mat => {
-    // Omitir productos que no tienen tipo definido
-    if (!mat.tipo || mat.tipo.trim() === '') {
-      return false;
+    // Permitir materiales con tipo definido
+    if (mat.tipo && mat.tipo.trim() !== '') {
+      const texto = `${mat.nombre || ''} ${mat.tipo || ''} ${mat.subtipo || ''}`.toLowerCase();
+      return texto.includes(busqueda.toLowerCase());
     }
-    const texto = `${mat.nombre || ''} ${mat.tipo || ''} ${mat.subtipo || ''}`.toLowerCase();
-    return texto.includes(busqueda.toLowerCase());
+    // Permitir pinturas y aros de llavero aunque no tengan tipo
+    const categoria = mat.categoria || '';
+    if (categoria === 'Pintura' || categoria === 'Paint' || 
+        categoria === 'Aros de llavero' || categoria === 'Keychain Rings') {
+      const texto = `${mat.nombre || ''} ${mat.categoria || ''}`.toLowerCase();
+      return texto.includes(busqueda.toLowerCase());
+    }
+    return false;
   });
 
   // Filtrar materiales agotados y disponibles
@@ -527,21 +534,30 @@ const InventoryScreen: React.FC = () => {
     arosllaveros: require('../assets/arosllaveros.png'),
   };
 
-  // Función para calcular el stock en unidades
-  const getStockUnidades = (mat) => {
-    const categoria = mat.categoria || t.filament;
-    const restante = parseFloat(mat.cantidadRestante || mat.cantidad || '0');
-    if (categoria === t.filament || categoria === t.resin) {
-      const peso = parseFloat(mat.peso || mat.pesoBobina || '1');
-      return peso > 0 ? Math.floor(restante / peso) : 0;
-    } else if (categoria === t.paint) {
-      const cantidadFrasco = parseFloat(mat.cantidad || '1');
-      return cantidadFrasco > 0 ? Math.floor(restante / cantidadFrasco) : 0;
-    } else {
-      // Para aros de llavero y categorías personalizadas, usar cantidad (stock actual en unidades)
-      return Math.floor(parseFloat(mat.cantidad || '0'));
-    }
-  };
+function getStockUnidades(mat: any): number {
+  const categoria = mat.categoria;
+  const restante = parseFloat(mat.cantidadRestante || mat.cantidad || '0');
+
+  // Comparamos contra los nombres base (constantes en español)
+  if (categoria === 'Filamento' || categoria === 'Resina') {
+    const peso = parseFloat(mat.peso || mat.pesoBobina || '1');
+    // Si no hay peso, no se puede dividir. Devolvemos 0.
+    if (isNaN(peso) || peso <= 0) return 0;
+    return Math.ceil(restante / peso);
+
+  } else if (categoria === 'Pintura') {
+    const cantidadFrasco = parseFloat(mat.cantidad || '1');
+    // Si no hay cantidad por frasco, no se puede dividir. Devolvemos 0.
+    if (isNaN(cantidadFrasco) || cantidadFrasco <= 0) return 0;
+    return Math.ceil(restante / cantidadFrasco);
+
+  } else {
+    // Para 'Aros de llavero' y otros, la cantidad restante es el stock.
+    return Math.floor(parseFloat(mat.cantidadRestante || mat.cantidad || '0'));
+  }
+};
+
+  
 
   // Función para cambiar el ordenamiento
   const cambiarOrdenamiento = (nuevoOrdenamiento) => {
@@ -748,7 +764,7 @@ const InventoryScreen: React.FC = () => {
                             {mat.subtipo}
                           </Text>
                         ) : (
-                          <Text style={styles.materialSubtipo} numberOfLines={1} ellipsizeMode="tail">
+                          <Text style={[styles.materialSubtipo, (mat.tipo || 'Sin tipo') === 'Sin tipo' && { opacity: 0, height: 0 }]} numberOfLines={1} ellipsizeMode="tail">
                             {mat.tipo || 'Sin tipo'}
                           </Text>
                         )}
@@ -771,21 +787,10 @@ const InventoryScreen: React.FC = () => {
                         </View>
                         <View style={styles.detalleFila}>
                           <Text style={styles.detalleLabel}>{t.currentStock}</Text>
-                          <Text style={styles.detalleValor}>
-                            {mat.categoria === t.filament || mat.categoria === t.resin
-                              ? (() => {
-                                  const restante = parseFloat(mat.cantidadRestante || '0');
-                                  const peso = parseFloat(mat.peso || '1');
-                                  return peso > 0 ? Math.floor(restante / peso) : 0;
-                                })() + ' ' + t.units
-                              : mat.categoria === t.paint
-                                ? (() => {
-                                    const restante = parseFloat(mat.cantidadRestante || '0');
-                                    const cantidadFrasco = parseFloat(mat.cantidad || '1');
-                                    return cantidadFrasco > 0 ? Math.floor(restante / cantidadFrasco) : 0;
-                                  })() + ' ' + t.units
-                                : (mat.cantidad || '-') + ' ' + t.units}
-                          </Text>
+<Text style={styles.detalleValor}>
+    {getStockUnidades(mat)} {t.units}
+</Text>
+
                         </View>
                         <View style={styles.detalleFila}>
                           <Text style={styles.detalleLabel}>{t.remaining}</Text>
@@ -886,7 +891,7 @@ const InventoryScreen: React.FC = () => {
                     <Text style={[styles.materialNombre, { color: '#e53935' }]} numberOfLines={2} ellipsizeMode="tail">
                       {getNombreTraducido(mat.nombre)}
                     </Text>
-                    <Text style={[styles.materialSubtipo, { color: '#e53935' }]} numberOfLines={1} ellipsizeMode="tail">
+                    <Text style={[styles.materialSubtipo, { color: '#e53935' }, (mat.subtipo || mat.tipo || 'Sin tipo') === 'Sin tipo' && { opacity: 0, height: 0 }]} numberOfLines={1} ellipsizeMode="tail">
                       {mat.subtipo || mat.tipo || 'Sin tipo'}
                     </Text>
                   </View>
@@ -930,7 +935,7 @@ const InventoryScreen: React.FC = () => {
               <View style={styles.modalContainer}>
                 <Text style={styles.modalTitle}>⚠️ {t.deleteMaterial}</Text>
                 <Text style={styles.modalMessage}>
-                  {t.confirmDeleteMaterialMessage}
+                  {t.confirmDeleteMaterialMessage.replace('{0}', materialAEliminar?.nombre || '')}
                 </Text>
                 <View style={styles.modalButtons}>
                   <TouchableOpacity onPress={() => setShowDeleteAlert(false)} style={styles.modalButtonCancel}>

@@ -31,7 +31,6 @@ const MaterialList: React.FC<MaterialListProps> = ({
 }) => {
   const { lang } = useLanguage();
 
-  // Función para traducir categorías
   const traducirCategoria = (categoria: string) => {
     if (lang === 'en') {
       switch (categoria) {
@@ -46,7 +45,6 @@ const MaterialList: React.FC<MaterialListProps> = ({
     return categoria;
   };
 
-  // Función para traducir tipos
   const traducirTipo = (tipo: string) => {
     if (lang === 'en') {
       switch (tipo) {
@@ -57,11 +55,9 @@ const MaterialList: React.FC<MaterialListProps> = ({
     }
     return tipo;
   };
-  // Agrupar materiales por categoría y luego por tipo (omitir productos sin tipo)
+
   const agruparMaterialesPorCategoriaYTipo = () => {
     const matsPorCategoria: { [categoria: string]: { [tipo: string]: Material[] } } = {};
-    
-    // Filtrar materiales que tienen tipo definido
     const materialesFiltrados = materiales.filter(mat => mat.tipo && mat.tipo.trim() !== '');
     
     materialesFiltrados.forEach(mat => {
@@ -80,7 +76,6 @@ const MaterialList: React.FC<MaterialListProps> = ({
     return matsPorCategoria;
   };
 
-  // Renderizar grupo de materiales por tipo
   const renderMaterialGroup = (tipo: string, materiales: Material[]) => {
     const filas = [];
     for (let i = 0; i < materiales.length; i += 2) {
@@ -107,7 +102,6 @@ const MaterialList: React.FC<MaterialListProps> = ({
     );
   };
 
-  // Renderizar categoría completa
   const renderCategoria = (categoria: string, tipos: { [tipo: string]: Material[] }) => {
     return (
       <View key={categoria} style={styles.categoryContainer}>
@@ -134,40 +128,13 @@ const MaterialList: React.FC<MaterialListProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  categoryContainer: {
-    marginBottom: 16,
-  },
-  categoryTitle: {
-    color: '#00e676',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  subGroupContainer: {
-    marginBottom: 8,
-    marginLeft: 8,
-  },
-  subGroupTitle: {
-    color: '#a0a0a0',
-    fontWeight: 'bold',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 4,
-    justifyContent: 'center',
-    alignSelf: 'center',
-    maxWidth: 340,
-    width: '100%',
-  },
-  emptySpace: {
-    flex: 1,
-  },
+  container: { width: '100%', },
+  categoryContainer: { marginBottom: 16, },
+  categoryTitle: { color: '#00e676', fontWeight: 'bold', fontSize: 18, marginBottom: 8, textTransform: 'uppercase', },
+  subGroupContainer: { marginBottom: 8, marginLeft: 8, },
+  subGroupTitle: { color: '#a0a0a0', fontWeight: 'bold', fontSize: 14, marginBottom: 4, },
+  row: { flexDirection: 'row', marginBottom: 4, justifyContent: 'center', alignSelf: 'center', maxWidth: 340, width: '100%', },
+  emptySpace: { flex: 1, },
 });
 
 export default MaterialList;

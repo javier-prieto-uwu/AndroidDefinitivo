@@ -49,7 +49,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
 
   // Datos del usuario autenticado
   const user = auth.currentUser;
-  const nombreUsuario = user?.displayName || 'Usuario';
+  const nombreUsuario = user?.displayName || t.user;
   const emailUsuario = user?.email || '';
   const fotoUsuario = user?.photoURL || 'https://via.placeholder.com/100x100/00e676/ffffff?text=U';
   // Nivel calculado según horas de impresión
@@ -110,6 +110,22 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
     Alert.alert(t.editProfile, t.functionInDevelopment);
   };
 
+  const traducirCategoria = (categoria: string) => {
+    if (categoria === 'Filamento' || categoria === 'Filament') {
+      return lang === 'en' ? 'Filament' : 'Filamento';
+    }
+    if (categoria === 'Resina' || categoria === 'Resin') {
+      return lang === 'en' ? 'Resin' : 'Resina';
+    }
+    if (categoria === 'Pintura' || categoria === 'Paint') {
+      return lang === 'en' ? 'Paint' : 'Pintura';
+    }
+    if (categoria === 'Aros de llavero' || categoria === 'Keychain Rings') {
+      return lang === 'en' ? 'Keychain Rings' : 'Aros de llavero';
+    }
+    return categoria;
+  };
+
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'add':
@@ -145,11 +161,11 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
         });
         // Asignar color por categoría
         Object.values(categorias).forEach((cat: any) => {
-          // Comparar con las categorías originales en español
-          if (cat.nombre === 'Filamento' || cat.nombre === 'Filaments') cat.color = '#00e676';
-          else if (cat.nombre === 'Resina' || cat.nombre === 'Resins') cat.color = '#2196f3';
-          else if (cat.nombre === 'Pinturas' || cat.nombre === 'Paints') cat.color = '#ff9800';
-          else if (cat.nombre.toLowerCase().includes('aro') || cat.nombre.toLowerCase().includes('ring')) cat.color = '#9c27b0';
+          // Comparar con las categorías originales en español e inglés
+          if (cat.nombre === 'Filamento' || cat.nombre === 'Filament') cat.color = '#00e676';
+          else if (cat.nombre === 'Resina' || cat.nombre === 'Resin') cat.color = '#2196f3';
+          else if (cat.nombre === 'Pintura' || cat.nombre === 'Paint') cat.color = '#ff9800';
+          else if (cat.nombre === 'Aros de llavero' || cat.nombre === 'Keychain Rings' || cat.nombre.toLowerCase().includes('aro') || cat.nombre.toLowerCase().includes('ring')) cat.color = '#9c27b0';
           else cat.color = '#b0b0b0';
         });
 
@@ -214,18 +230,42 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           .sort((a, b) => b.productos - a.productos)
           .slice(0, 10);
 
-        // Filamento y resina consumidos
+        // Filamento y resina consumidos (basado en cálculos reales)
         let filamentoConsumido = 0;
         let resinaConsumida = 0;
-        materiales.forEach(mat => {
-          // Comparar con las categorías originales en español
-          if (mat.categoria === 'Filamento' || mat.categoria === 'Filaments') {
-            filamentoConsumido += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
-            console.log('Filamento encontrado:', mat.nombre, 'peso:', mat.peso, 'cantidad:', mat.cantidad);
+        calculos.forEach(calc => {
+          // Para cálculos con un solo material
+          if (!calc.esMultifilamento && calc.materialSeleccionado && calc.filamento?.gramosUtilizados) {
+            const categoria = calc.materialSeleccionado.categoria;
+            const gramosUtilizados = parseFloat(calc.filamento.gramosUtilizados) || 0;
+            
+            if (categoria === 'Filamento' || categoria === 'Filament') {
+              filamentoConsumido += gramosUtilizados;
+              console.log('Filamento consumido en cálculo:', calc.nombre, 'gramos:', gramosUtilizados);
+            }
+            if (categoria === 'Resina' || categoria === 'Resin') {
+              resinaConsumida += gramosUtilizados;
+              console.log('Resina consumida en cálculo:', calc.nombre, 'gramos:', gramosUtilizados);
+            }
           }
-          if (mat.categoria === 'Resina' || mat.categoria === 'Resins') {
-            resinaConsumida += parseFloat(mat.cantidad || 0) * parseFloat(mat.peso || 0);
-            console.log('Resina encontrada:', mat.nombre, 'peso:', mat.peso, 'cantidad:', mat.cantidad);
+          
+          // Para cálculos con múltiples materiales
+          if (calc.esMultifilamento && calc.materialesMultiples) {
+            calc.materialesMultiples.forEach(mat => {
+              if (mat && mat.gramosUtilizados) {
+                const categoria = mat.categoria;
+                const gramosUtilizados = parseFloat(mat.gramosUtilizados) || 0;
+                
+                if (categoria === 'Filamento' || categoria === 'Filament') {
+                  filamentoConsumido += gramosUtilizados;
+                  console.log('Filamento multi consumido:', mat.nombre, 'gramos:', gramosUtilizados);
+                }
+                if (categoria === 'Resina' || categoria === 'Resin') {
+                  resinaConsumida += gramosUtilizados;
+                  console.log('Resina multi consumida:', mat.nombre, 'gramos:', gramosUtilizados);
+                }
+              }
+            });
           }
         });
         console.log('Total filamento consumido:', filamentoConsumido);
@@ -365,7 +405,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
 
   // Calcular datos reales para la gráfica circular de tipos de filamento
   const tiposFilamentoContador: Record<string, number> = {};
-  const materialesFilamento = materiales.filter(m => m.categoria === 'Filamento' || m.categoria === 'Filaments');
+  const materialesFilamento = materiales.filter(m => m.categoria === 'Filamento' || m.categoria === 'Filament');
   console.log('Materiales de filamento encontrados:', materialesFilamento.length);
   materialesFilamento.forEach(m => {
     const tipo = m.tipo || 'Otro';
@@ -561,7 +601,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
           <View key={index} style={styles.categoryItem}>
             <View style={styles.categoryInfo}>
               <View style={[styles.categoryDot, { backgroundColor: categoria.color }]} />
-              <Text style={styles.categoryName}>{categoria.nombre}</Text>
+              <Text style={styles.categoryName}>{traducirCategoria(categoria.nombre)}</Text>
             </View>
             <Text style={styles.categoryAmount}>{categoria.cantidad} {t.materials}</Text>
           </View>
@@ -606,7 +646,7 @@ const MenuScreen: React.FC = ({ setIsLoggedIn }: { setIsLoggedIn: (value: boolea
               <View key={index} style={styles.categoryItem}>
                 <View style={styles.categoryInfo}>
                   <View style={[styles.categoryDot, { backgroundColor: categoria.color }]} />
-                  <Text style={styles.categoryName}>{categoria.nombre}</Text>
+                  <Text style={styles.categoryName}>{traducirCategoria(categoria.nombre)}</Text>
                 </View>
                 <Text style={styles.categoryAmount}>{categoria.cantidad} {t.sold}</Text>
               </View>
