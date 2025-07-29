@@ -354,45 +354,19 @@ const AddMaterialScreen: React.FC = () => {
   // Antes de la validación y del guardado, agregar logs para depuración
   console.log('Material actual:', material);
 
-  const handleGuardar = async (): Promise<void> => {
+const handleGuardar = async (): Promise<void> => {
     console.log('Material a guardar:', material);
-    
-    // Traducir tipos y subtipos al inglés si el idioma está en inglés
-    let materialParaGuardar = { ...material };
-    if (lang === 'en') {
-      // Mapeo de español a inglés para tipos y subtipos
-      const tipoMap: { [key: string]: string } = {
-        'Madera': 'Wood',
-        'Seda': 'Silk',
-        'Transparente': 'Transparent',
-        'Brillante': 'Glossy',
-        'Mate': 'Matte',
-        'Flexible': 'Flexible',
-        'Multicolor': 'Multicolor',
-        'Reciclado': 'Recycled',
-        'Carbono': 'Carbon',
-        'Alta temperatura': 'High Temperature',
-        'Ignífugo': 'Fire Resistant'
-      };
-      
-      if (materialParaGuardar.subtipo && tipoMap[materialParaGuardar.subtipo]) {
-        materialParaGuardar.subtipo = tipoMap[materialParaGuardar.subtipo];
-      }
-      if (materialParaGuardar.tipo && tipoMap[materialParaGuardar.tipo]) {
-        materialParaGuardar.tipo = tipoMap[materialParaGuardar.tipo];
-      }
-    }
     
     // Generar nombre usando utilidad
     const nombreGenerado = generarNombreMaterial({
-      ...materialParaGuardar,
+      ...material,
       id: '',
       nombre: ''
     });
     
     // Preparar material para guardar
     let materialAGuardar: any = {
-      ...materialParaGuardar,
+      ...material,
       nombre: nombreGenerado,
       fechaRegistro: new Date().toISOString(),
       cantidadInicial: material.cantidad // Guardar el stock inicial (unidades)
@@ -403,18 +377,34 @@ const AddMaterialScreen: React.FC = () => {
       const unidades = parseFloat(material.cantidad || '1');
       const gramosPorUnidad = parseFloat(material.peso || '1');
       materialAGuardar.cantidadRestante = (unidades * gramosPorUnidad).toString();
-      materialAGuardar.pesoBobina = material.peso;
+      materialAGuardar.pesoBobina = material.peso; // Guardamos el peso por bobina
+      materialAGuardar.cantidad = material.cantidad; // Guardamos el número de bobinas
+      
     } else if (material.categoria === 'Pintura') {
-      const unidades = parseFloat(material.cantidad || '1');
-      const mlPorUnidad = parseFloat(material.cantidadPintura || '1');
-      materialAGuardar.cantidadRestante = (unidades * mlPorUnidad).toString();
-      materialAGuardar.cantidad = material.cantidadPintura; // ml por frasco
+      // ======================= INICIO DE LA CORRECCIÓN =======================
+      // 'material.cantidad' = Nº de botellas que estás registrando (ej: 1)
+      const numeroDeBotellas = parseFloat(material.cantidad || '1');
+      // 'material.cantidadPintura' = Total de ml que contiene CADA botella (ej: 1000)
+      const mlPorBotella = parseFloat(material.cantidadPintura || '0');
+
+      // El campo 'cantidad' en Firebase DEBE guardar los ml POR BOTELLA.
+      // Este es el valor que usará la calculadora para la división (precio / cantidad).
+      materialAGuardar.cantidad = mlPorBotella.toString();
+      
+      // 'cantidadRestante' es el stock total de ml que tienes (botellas * mlPorBotella).
+      materialAGuardar.cantidadRestante = (numeroDeBotellas * mlPorBotella).toString();
+
+      // Limpiamos el campo que ya no es necesario para evitar redundancia.
+      delete materialAGuardar.cantidadPintura;
+      // ======================== FIN DE LA CORRECCIÓN =========================
+
     } else if (material.categoria === 'Aros de llavero') {
-      // Para aros de llavero: cantidadInicial se mantiene fijo, cantidadRestante y cantidad son iguales al inicio
+      // Para aros de llavero: cantidadRestante y cantidad son iguales al inicio.
       materialAGuardar.cantidadRestante = material.cantidad;
       materialAGuardar.cantidad = material.cantidad; // Stock actual en unidades
+      
     } else {
-      // Para categorías personalizadas: cantidadInicial se mantiene fijo, cantidadRestante y cantidad son iguales al inicio
+      // Para categorías personalizadas: cantidadRestante y cantidad son iguales al inicio.
       materialAGuardar.cantidadRestante = material.cantidad || '0';
       materialAGuardar.cantidad = material.cantidad || '0'; // Stock actual en unidades
     }

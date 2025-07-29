@@ -9,6 +9,21 @@ import { getCurrency } from '../utils';
 import translations from '../utils/locales';
 import { limpiarPrecio } from '../utils/materialUtils';
 
+interface Material {
+  id: string;
+  categoria: string;
+  nombre: string;
+  precio?: string;
+  precioBobina?: string;
+  cantidad?: string; // ml por botella o unidades por paquete
+  cantidadRestante?: string; // Stock actual en ml, gr, o unidades
+  peso?: string; // Peso por bobina
+  pesoBobina?: string; // Peso por bobina
+  color?: string;
+  imagen?: string;
+  tipo?: string;
+}
+
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
   const db = getFirestore(app);
@@ -16,7 +31,7 @@ const HomeScreen: React.FC = () => {
   const t = translations[lang];
 
   // Estado para materiales y estadísticas
-  const [materiales, setMateriales] = useState<any[]>([]);
+ const [materiales, setMateriales] = useState<Material[]>([]);
   const [estadisticas, setEstadisticas] = useState({
     totalMateriales: 0,
     valorTotal: 0,
@@ -113,7 +128,7 @@ const HomeScreen: React.FC = () => {
         }
         try {
           const snapshot = await getDocs(collection(db, 'usuarios', user.uid, 'materiales'));
-          const mats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const mats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Material[];
           // Obtener la última cotización de calculadora
           let ultimaCotizacion = 0;
           try {
@@ -125,16 +140,47 @@ const HomeScreen: React.FC = () => {
             }
           } catch (e) { /* Si falla, deja 0 */ }
           setMateriales(mats);
-          setEstadisticas({
-            totalMateriales: mats.length,
-            valorTotal: mats.reduce((sum, mat: any) => {
-              const precio = parseFloat(limpiarPrecio(mat.precio || '0')) || 0;
-              const cantidad = parseFloat(mat.cantidad || 0) || 0;
-              return sum + (precio * cantidad);
-            }, 0),
-            stockTotal: mats.reduce((sum, mat: any) => sum + (parseFloat(mat.cantidad) || 0), 0),
-            ultimaCotizacion
-          });
+          
+
+setEstadisticas({
+    totalMateriales: mats.length,
+    
+    // ======================= INICIO DE LA CORRECCIÓN =======================
+    valorTotal: mats.reduce((sum, mat) => {
+        const categoria = mat.categoria;
+        // El precio siempre es por unidad (bobina, botella, paquete)
+        const precioPorUnidadCompleta = parseFloat(limpiarPrecio(mat.precioBobina || mat.precio || '0'));
+        // El stock que realmente te queda en gramos, ml o unidades
+        const cantidadRestante = parseFloat(mat.cantidadRestante || '0');
+
+        let cantidadTotalOriginalPorUnidad = 0;
+        
+        // Determinamos cuál es la cantidad original de una unidad completa
+        if (categoria === 'Filamento' || categoria === 'Resina') {
+            // Para filamentos, es el peso de la bobina
+            cantidadTotalOriginalPorUnidad = parseFloat(mat.pesoBobina || mat.peso || '1');
+        } else { 
+            // Para Pintura (ml por botella) y Aros (unidades por paquete)
+            cantidadTotalOriginalPorUnidad = parseFloat(mat.cantidad || '1');
+        }
+
+        // Si no hay datos válidos, no suma el valor de este material
+        if (!precioPorUnidadCompleta || cantidadTotalOriginalPorUnidad <= 0) {
+            return sum;
+        }
+
+        // Calculamos el valor del stock restante
+        const valorRealDelStock = (precioPorUnidadCompleta / cantidadTotalOriginalPorUnidad) * cantidadRestante;
+        
+        return sum + valorRealDelStock;
+    }, 0),
+    // ======================== FIN DE LA CORRECCIÓN =========================
+
+      stockTotal: mats.reduce((sum, mat) => sum + getStockUnidades(mat), 0),
+    ultimaCotizacion
+});
+
+
         } catch (error) {
           setMateriales([]);
           setEstadisticas({
@@ -161,6 +207,40 @@ const HomeScreen: React.FC = () => {
     niidea: require('../assets/niidea.png'),
     brochas: require('../assets/brochas.png'),
     arosllaveros: require('../assets/arosllaveros.png'),
+  };
+
+  // ... dentro del componente HomeScreen, antes del return
+
+const getStockUnidades = (material) => {
+    const categoria = material.categoria;
+
+    // --- Lógica para Filamento y Resina (sin cambios) ---
+    if (categoria === 'Filamento' || categoria === 'Resina') {
+        const cantidadRestanteGramos = parseFloat(material.cantidadRestante || '0');
+        const pesoPorUnidad = parseFloat(material.pesoBobina || material.peso || '1');
+        if (isNaN(cantidadRestanteGramos) || isNaN(pesoPorUnidad) || pesoPorUnidad <= 0) {
+            return 0;
+        }
+        return Math.ceil(cantidadRestanteGramos / pesoPorUnidad);
+    }
+    
+    // ======================= INICIO DE LA CORRECCIÓN =======================
+    // --- Nueva lógica para Pintura ---
+    if (categoria === 'Pintura') {
+        const cantidadRestanteML = parseFloat(material.cantidadRestante || '0');
+        // 'cantidad' guarda los ml por botella que definimos en AddMaterialScreen
+        const mlPorBotella = parseFloat(material.cantidad || '1'); 
+        if (isNaN(cantidadRestanteML) || isNaN(mlPorBotella) || mlPorBotella <= 0) {
+            return 0;
+        }
+        // Divide el total de ml restantes entre los ml de una botella
+        return Math.ceil(cantidadRestanteML / mlPorBotella);
+    }
+    // ======================== FIN DE LA CORRECCIÓN =========================
+
+    // --- Lógica para Aros de Llavero y otros (caso por defecto) ---
+    // Devuelve directamente la cantidad de unidades restantes.
+    return parseFloat(material.cantidadRestante || material.cantidad || '0');
   };
 
   return (
@@ -267,7 +347,7 @@ const HomeScreen: React.FC = () => {
                     <View style={styles.materialDetails}>
                       <View style={styles.stockContainer}>
                         <Text style={styles.stockLabel}>{t.stock}</Text>
-                        <Text style={styles.materialStock}>{material.cantidad || 0} {lang === 'en' ? 'units' : 'unidades'}</Text>
+                       <Text style={styles.materialStock}>{getStockUnidades(material)} {lang === 'en' ? 'units' : 'unidades'}</Text>
                       </View>
                       <Text style={styles.materialDescription}>{material.descripcion || ''}</Text>
                     </View>

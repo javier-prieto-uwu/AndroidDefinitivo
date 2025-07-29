@@ -634,28 +634,12 @@ const getInfoMaterial = (material: any) => {
     );
   };
 
-const agruparMaterialesPorTipo = () => {
-    const matsPorTipo: { [key: string]: any[] } = {};
+  const agruparMaterialesPorTipo = () => {
+    const matsPorTipo: { [tipo: string]: any[] } = {};
     materialesGuardados.forEach(mat => {
-      // Si hay un 'tipo', lo usamos para agrupar.
-      // Si no hay 'tipo', usamos la 'categoría' como grupo.
-      let grupo = mat.tipo || mat.categoria || t.uncategorized;
-
-      // --- INICIO DE LA CORRECCIÓN CON IF ---
-      // Si estamos en inglés y el grupo es una de las categorías base, la traducimos.
-      if (lang === 'en') {
-        if (grupo === 'Pintura') {
-          grupo = t.paint;
-        } else if (grupo === 'Aros de llavero') {
-          grupo = t.keychainRings;
-        }
-      }
-      // --- FIN DE LA CORRECCIÓN ---
-      
-      if (!matsPorTipo[grupo]) {
-        matsPorTipo[grupo] = [];
-      }
-      matsPorTipo[grupo].push(mat);
+      const tipo = mat.tipo || 'Sin tipo';
+      if (!matsPorTipo[tipo]) matsPorTipo[tipo] = [];
+      matsPorTipo[tipo].push(mat);
     });
     return matsPorTipo;
   };
@@ -2306,18 +2290,49 @@ const CostCalculatorScreen: React.FC = () => {
           )}
 
           {/* Costos */}
-          <View style={styles.summaryCostsContainer}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <Ionicons name="cash-outline" size={20} color="#ffd600" style={{ marginRight: 8 }} />
-              <Text style={styles.summarySectionTitle}>{t.costBreakdown}</Text>
-            </View>
-            <Text style={styles.resumenLabel}>{t.materials}: <Text style={styles.costoBasico}>${esMultifilamento ? calcularCostoMaterialesMultiples().toFixed(2) : calculo.filamento.costoMaterialSolo} {t.currency}</Text></Text>
-            <Text style={styles.resumenLabel}>{t.labor}: <Text style={styles.costoBasico}>${calculo.manoObra.costoTotalManoObra} {t.currency}</Text></Text>
-            <Text style={styles.resumenLabel}>{t.extraMaterials}: <Text style={styles.costoBasico}>${calculo.avanzados.totalMaterialesExtra} {t.currency}</Text></Text>
-            <Text style={styles.resumenLabel}>{t.power}: <Text style={styles.costoBasico}>${calculo.avanzados.costoLuz} {t.currency}</Text></Text>
-            <Text style={[styles.resumenLabel, {color: '#ff9800'}]}>{t.productionCost}: <Text style={styles.costoProduccion}>${getProduccion()} {t.currency}</Text></Text>
-            <Text style={[styles.resumenLabel, {color: '#00e676'}]}>{t.salePrice}: <Text style={styles.costoVenta}>${getPrecioVenta()} {t.currency}</Text></Text>
-          </View>
+{/* En tu archivo CostCalculatorScreen.tsx */}
+
+{/* Costos */}
+<View style={styles.summaryCostsContainer}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+        <Ionicons name="cash-outline" size={20} color="#ffd600" style={{ marginRight: 8 }} />
+        <Text style={styles.summarySectionTitle}>{t.costBreakdown}</Text>
+    </View>
+
+    {(() => {
+        // Obtenemos todos los costos como números para evitar errores de formato
+        const costoMateriales = parseFloat(
+            esMultifilamento 
+            ? calcularCostoMaterialesMultiples().toFixed(2) 
+            : calculo.filamento.costoMaterialSolo || '0'
+        );
+        const costoManoObra = parseFloat(calculo.manoObra.costoTotalManoObra || '0');
+        const costoExtra = parseFloat(calculo.avanzados.totalMaterialesExtra || '0');
+        const costoLuz = parseFloat(calculo.avanzados.costoLuz || '0');
+
+        // Sumamos los costos para obtener el total de producción
+        const costoProduccionTotal = costoMateriales + costoManoObra + costoExtra + costoLuz;
+        
+        // Calculamos el precio de venta
+        const precioVentaFinal = costoProduccionTotal * (1 + porcentajeGanancia / 100);
+
+        return (
+            <>
+                <Text style={styles.resumenLabel}>{t.materials}: <Text style={styles.costoBasico}>${costoMateriales.toFixed(2)} {getCurrency(lang)}</Text></Text>
+                <Text style={styles.resumenLabel}>{t.labor}: <Text style={styles.costoBasico}>${costoManoObra.toFixed(2)} {getCurrency(lang)}</Text></Text>
+                <Text style={styles.resumenLabel}>{t.extraMaterials}: <Text style={styles.costoBasico}>${costoExtra.toFixed(2)} {getCurrency(lang)}</Text></Text>
+                <Text style={styles.resumenLabel}>{t.power}: <Text style={styles.costoBasico}>${costoLuz.toFixed(2)} {getCurrency(lang)}</Text></Text>
+                
+                <Text style={[styles.resumenLabel, {color: '#ff9800'}]}>
+                    {t.productionCost}: <Text style={styles.costoProduccion}>${costoProduccionTotal.toFixed(2)} {getCurrency(lang)}</Text>
+                </Text>
+                <Text style={[styles.resumenLabel, {color: '#00e676'}]}>
+                    {t.salePrice}: <Text style={styles.costoVenta}>${precioVentaFinal.toFixed(2)} {getCurrency(lang)}</Text>
+                </Text>
+            </>
+        );
+    })()}
+</View>
 
           {/* Totales */}
           

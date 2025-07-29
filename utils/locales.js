@@ -862,7 +862,7 @@ const translations = {
     confirmDeleteMaterialMessage: "Are you sure you want to delete the material \"{0}\"?",
     searchMaterialPlaceholder: "Search material by name, type or subtype...",
     price: "Price",
-    quantity: "Quantity",
+    quantity: "Quantity ML",
     remainingStock: "Remaining stock",
     brand: "Brand",
     bobbinWeight: "Bobbin weight",
