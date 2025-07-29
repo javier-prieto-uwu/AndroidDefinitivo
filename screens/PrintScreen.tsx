@@ -1035,12 +1035,12 @@ const cargarProyectosYSueltos = async () => {
     return productosUnicos;
   };
 
-  const renderImpresion = (calculo: any) => {
+    const renderImpresion = (calculo: any) => {
     const total = calculo.costoTotal || '0.00';
 
     // --- LÓGICA DE CÁLCULO UNIFICADA PARA COSTO DE MATERIALES ---
-    const costoTotalMateriales = (calculo.esMultifilamento && calculo.materialesMultiples && calculo.materialesMultiples.length > 0)
-      ? (calculo.materialesMultiples || []).reduce((sum, material) => {
+    const costoTotalMateriales = (calculo.materialesMultiples && calculo.materialesMultiples.length > 0)
+      ? (calculo.materialesMultiples || []).reduce((sum: number, material: any) => {
           if (!material) return sum;
           const precio = parseFloat(material.precioBobina || material.precio || '0');
           const gramosUtilizados = parseFloat(material.gramosUtilizados || '0');
@@ -1063,6 +1063,107 @@ const cargarProyectosYSueltos = async () => {
     const impresionId = calculo.id || 'default';
     const materialesExpandido = materialesExpandidos[impresionId] || false;
 
+    // --- COMPONENTE INTERNO PARA EVITAR REPETIR CÓDIGO ---
+    const MaterialesUsados = () => (
+      <View style={styles.materialesExpandidoContainer}>
+        {/* Material único */}
+        {!calculo.esMultifilamento && calculo.materialSeleccionado && (
+          <View style={styles.materialInfoContainer}>
+            <View style={[styles.materialColorIndicator, { backgroundColor: calculo.materialSeleccionado.color || '#00e676' }]} />
+            <View style={styles.materialDetails}>
+              <Text style={styles.materialInfoText}>{calculo.materialSeleccionado.nombre} ({calculo.materialSeleccionado.tipo} - {calculo.materialSeleccionado.subtipo})</Text>
+              <Text style={styles.materialDetailText}>
+                {`${t.gUsed}: ${calculo.filamento?.gramosUtilizados || '0'}g`}
+              </Text>
+              <View style={styles.materialInfoGrid}>
+                <Text style={styles.materialInfoLabel}>{t.unitPrice}:</Text>
+                <Text style={styles.materialInfoValue}>${calculo.filamento?.precioBobina || '0'} ${getCurrency(lang)}</Text>
+                <Text style={styles.materialInfoLabel}>{t.totalQuantity}:</Text>
+                <Text style={styles.materialInfoValue}>
+                  {(() => {
+                      const materialOriginal = materialesActualizados?.find((m: any) => m.id === calculo.materialSeleccionado.id);
+                      let cantidadTotal = 0;
+                      if (materialOriginal) {
+                          const pesoPorBobina = parseFloat(materialOriginal.peso || materialOriginal.pesoBobina || '0');
+                          const cantidadBobinas = parseFloat(materialOriginal.cantidadInicial || materialOriginal.cantidad || '1');
+                          cantidadTotal = pesoPorBobina * cantidadBobinas;
+                      } else {
+                          cantidadTotal = parseFloat(calculo.filamento?.pesoBobina || '0');
+                      }
+                      return `${cantidadTotal.toFixed(0)}g`;
+                  })()}
+                </Text>
+                <Text style={styles.materialInfoLabel}>{t.remainingQuantity}:</Text>
+                <Text style={styles.materialInfoValue}>
+                  {(() => {
+                      const materialOriginal = materialesActualizados?.find((m: any) => m.id === calculo.materialSeleccionado.id);
+                      let cantidadTotal = 0;
+                      if (materialOriginal) {
+                          const pesoPorBobina = parseFloat(materialOriginal.peso || materialOriginal.pesoBobina || '0');
+                          const cantidadBobinas = parseFloat(materialOriginal.cantidadInicial || materialOriginal.cantidad || '1');
+                          cantidadTotal = pesoPorBobina * cantidadBobinas;
+                      } else {
+                          cantidadTotal = parseFloat(calculo.filamento?.pesoBobina || '0');
+                      }
+                      const cantidadUtilizada = parseFloat(calculo.filamento?.gramosUtilizados || '0');
+                      const restante = cantidadTotal - cantidadUtilizada;
+                      return `${restante.toFixed(0)}g`;
+                  })()}
+                </Text>
+                <Text style={styles.materialInfoLabel}>{t.materialCost}:</Text>
+                <Text style={styles.materialInfoValue}>${calculo.filamento?.costoMaterialSolo || '0'} ${getCurrency(lang)}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Múltiples materiales */}
+        {calculo.esMultifilamento && calculo.materialesMultiples && calculo.materialesMultiples.length > 0 && (
+          <View style={styles.materialsContainer}>
+            {calculo.materialesMultiples.map((material: any, index: number) => {
+              if (!material) return null;
+              
+              // --- INICIO DE CORRECCIÓN PARA IMPRESIONES FALLIDAS ---
+              const materialOriginal = materialesActualizados?.find((m: any) => m.id === material.id);
+              
+              // Unifica los datos del material guardado con los del inventario para asegurar que siempre haya información
+              const displayMaterial = {
+                ...materialOriginal, // Base (nombre, tipo, etc.)
+                ...material,         // Sobrescribe con datos específicos del cálculo (gramos usados)
+              };
+              // --- FIN DE CORRECCIÓN ---
+
+              const precio = parseFloat(displayMaterial.precioBobina || displayMaterial.precio || '0');
+              const gramosUtilizados = parseFloat(displayMaterial.gramosUtilizados || '0');
+              let cantidadTotal = materialOriginal ? parseFloat(materialOriginal.peso || materialOriginal.pesoBobina || '0') : parseFloat(displayMaterial.pesoBobina || '0');
+              let costoIndividual = (cantidadTotal > 0) ? (precio / cantidadTotal) * gramosUtilizados : 0;
+              const cantidadRestante = cantidadTotal - gramosUtilizados;
+
+              return (
+                <View key={index} style={styles.materialItem}>
+                  <View style={[styles.materialColorIndicator, { backgroundColor: displayMaterial.color || '#00e676' }]} />
+                  <View style={styles.materialDetails}>
+                    <Text style={styles.materialInfoText}>{displayMaterial.nombre} ({displayMaterial.tipo} - {displayMaterial.subtipo})</Text>
+                    <Text style={styles.materialDetailText}>{`${t.gUsed}: ${gramosUtilizados}g`}</Text>
+                    <View style={styles.materialInfoGrid}>
+                      <Text style={styles.materialInfoLabel}>{t.unitPrice}:</Text>
+                      <Text style={styles.materialInfoValue}>${precio.toFixed(2)} ${getCurrency(lang)}</Text>
+                      <Text style={styles.materialInfoLabel}>{t.totalQuantity}:</Text>
+                      <Text style={styles.materialInfoValue}>{`${cantidadTotal.toFixed(0)}g`}</Text>
+                      <Text style={styles.materialInfoLabel}>{t.remainingQuantity}:</Text>
+                      <Text style={styles.materialInfoValue}>{`${cantidadRestante.toFixed(0)}g`}</Text>
+                      <Text style={styles.materialInfoLabel}>{t.materialCost}:</Text>
+                      <Text style={styles.materialInfoValue}>${costoIndividual.toFixed(2)} ${getCurrency(lang)}</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+
     return (
       <View key={calculo.id} style={styles.calculationCard}>
         <View style={styles.cardHeader}>
@@ -1080,374 +1181,19 @@ const cargarProyectosYSueltos = async () => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.accordionBody}>
-          <TouchableOpacity style={styles.materialesToggleButton} onPress={() => setMaterialesExpandidos(prev => ({ ...prev, [impresionId]: !materialesExpandido }))}>
-            <Text style={styles.materialesToggleText}><Ionicons name="cube-outline" size={16} color="#00e676" />{' '}{t.usedMaterials}</Text>
-            <Ionicons name={materialesExpandido ? "chevron-up" : "chevron-down"} size={20} color="#00e676" />
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.materialesToggleButton} onPress={() => setMaterialesExpandidos(prev => ({ ...prev, [impresionId]: !materialesExpandido }))}>
+          <Text style={styles.materialesToggleText}><Ionicons name="cube-outline" size={16} color="#00e676" />{' '}{t.usedMaterials}</Text>
+          <Ionicons name={materialesExpandido ? "chevron-up" : "chevron-down"} size={20} color="#00e676" />
+        </TouchableOpacity>
 
-          {materialesExpandido && (
-            <View style={styles.materialesExpandidoContainer}>
-              {/* Material único */}
-              {!calculo.esMultifilamento && calculo.materialSeleccionado && calculo.materialSeleccionado.id && (
-                <View style={styles.materialInfoContainer}>
-                  <View style={[styles.materialColorIndicator, { backgroundColor: calculo.materialSeleccionado.color || '#00e676' }]} />
-                  <View style={styles.materialDetails}>
-                    <Text style={styles.materialInfoText}>{calculo.materialSeleccionado.nombre} ({calculo.materialSeleccionado.tipo} - {calculo.materialSeleccionado.subtipo})</Text>
-                    <Text style={styles.materialDetailText}>
-                      {`${t.gUsed}: ${calculo.filamento?.gramosUtilizados || '0'}g`}
-                    </Text>
-                    <View style={styles.materialInfoGrid}>
-                      <Text style={styles.materialInfoLabel}>{t.unitPrice}:</Text>
-                      <Text style={styles.materialInfoValue}>${calculo.filamento?.precioBobina || '0'} ${getCurrency(lang)}</Text>
-                      
-                      {/* --- CORRECCIÓN PARA MATERIAL ÚNICO --- */}
-                      <Text style={styles.materialInfoLabel}>{t.totalQuantity}:</Text>
-                      <Text style={styles.materialInfoValue}>
-                        {(() => {
-                            const materialOriginal = materialesActualizados?.find((m: any) => m.id === calculo.materialSeleccionado.id);
-                            let cantidadTotal = 0;
-                            if (materialOriginal) {
-                                const pesoPorBobina = parseFloat(materialOriginal.peso || materialOriginal.pesoBobina || '0');
-                                const cantidadBobinas = parseFloat(materialOriginal.cantidadInicial || materialOriginal.cantidad || '1');
-                                cantidadTotal = pesoPorBobina * cantidadBobinas;
-                            } else {
-                                cantidadTotal = parseFloat(calculo.filamento?.pesoBobina || '0');
-                            }
-                            return `${cantidadTotal.toFixed(0)}g`;
-                        })()}
-                      </Text>
-                      <Text style={styles.materialInfoLabel}>{t.remainingQuantity}:</Text>
-                      <Text style={styles.materialInfoValue}>
-                        {(() => {
-                            const materialOriginal = materialesActualizados?.find((m: any) => m.id === calculo.materialSeleccionado.id);
-                            let cantidadTotal = 0;
-                            if (materialOriginal) {
-                                const pesoPorBobina = parseFloat(materialOriginal.peso || materialOriginal.pesoBobina || '0');
-                                const cantidadBobinas = parseFloat(materialOriginal.cantidadInicial || materialOriginal.cantidad || '1');
-                                cantidadTotal = pesoPorBobina * cantidadBobinas;
-                            } else {
-                                cantidadTotal = parseFloat(calculo.filamento?.pesoBobina || '0');
-                            }
-                            const cantidadUtilizada = parseFloat(calculo.filamento?.gramosUtilizados || '0');
-                            const restante = cantidadTotal - cantidadUtilizada;
-                            return `${restante.toFixed(0)}g`;
-                        })()}
-                      </Text>
-                      {/* --- FIN DE LA CORRECCIÓN --- */}
-
-                      <Text style={styles.materialInfoLabel}>{t.materialCost}:</Text>
-                      <Text style={styles.materialInfoValue}>${calculo.filamento?.costoMaterialSolo || '0'} ${getCurrency(lang)}</Text>
-                    </View>
-                  </View>
-                </View>
-              )}
-
-              {/* Múltiples materiales */}
-              {calculo.esMultifilamento && calculo.materialesMultiples && calculo.materialesMultiples.length > 0 && (
-                <View style={styles.materialsContainer}>
-                  {calculo.materialesMultiples.map((material: any, index: number) => {
-                    if (!material) return null;
-                    const materialOriginal = materialesActualizados?.find((m: any) => m.id === material.id);
-                    const precio = parseFloat(material.precioBobina || material.precio || '0');
-                    const gramosUtilizados = parseFloat(material.gramosUtilizados || '0');
-                    let cantidadTotal = materialOriginal ? parseFloat(materialOriginal.peso || materialOriginal.pesoBobina || '0') : parseFloat(material.pesoBobina || '0');
-                    let costoIndividual = (cantidadTotal > 0) ? (precio / cantidadTotal) * gramosUtilizados : 0;
-                    const cantidadRestante = cantidadTotal - gramosUtilizados;
-
-                    return (
-                      <View key={index} style={styles.materialItem}>
-                        <View style={[styles.materialColorIndicator, { backgroundColor: material.color || '#00e676' }]} />
-                        <View style={styles.materialDetails}>
-                          <Text style={styles.materialInfoText}>{material.nombre} ({material.tipo} - {material.subtipo})</Text>
-                          <Text style={styles.materialDetailText}>{`${t.gUsed}: ${gramosUtilizados}g`}</Text>
-                          <View style={styles.materialInfoGrid}>
-                            <Text style={styles.materialInfoLabel}>{t.unitPrice}:</Text>
-                            <Text style={styles.materialInfoValue}>${precio.toFixed(2)} ${getCurrency(lang)}</Text>
-                            <Text style={styles.materialInfoLabel}>{t.totalQuantity}:</Text>
-                            <Text style={styles.materialInfoValue}>{`${cantidadTotal.toFixed(0)}g`}</Text>
-                            <Text style={styles.materialInfoLabel}>{t.remainingQuantity}:</Text>
-                            <Text style={styles.materialInfoValue}>{`${cantidadRestante.toFixed(0)}g`}</Text>
-                            <Text style={styles.materialInfoLabel}>{t.materialCost}:</Text>
-                            <Text style={styles.materialInfoValue}>${costoIndividual.toFixed(2)} ${getCurrency(lang)}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-
-        {calculo.detallesImpresion && (
-          <View style={styles.detailsContainer}>
-            {calculo.detallesImpresion.relleno && <Text style={styles.detailText}>{t.fill}: {calculo.detallesImpresion.relleno}%</Text>}
-            {calculo.detallesImpresion.tiempoImpresion && <Text style={styles.detailText}>{t.time}: {calculo.detallesImpresion.tiempoImpresion}h</Text>}
-            {calculo.detallesImpresion.temperatura && <Text style={styles.detailText}>{t.temp}: {calculo.detallesImpresion.temperatura}°C</Text>}
-          </View>
-        )}
-
-        <Text style={[styles.infoValue, { color: '#00e676' }]}>
-          {`${t.materials}: $${costoTotalMateriales.toFixed(2)} ${getCurrency(lang)}`}
-        </Text>
-        <Text style={[styles.infoValue, { color: '#ffd600' }]}>
-          {`${t.laborCost}: $${calculo.manoObra?.costoTotalManoObra || '0'} ${getCurrency(lang)}`}
-        </Text>
-        <Text style={[styles.infoValue, { color: '#ff9100' }]}>
-          {`${t.extraMaterials}: $${calculo.avanzados?.totalMaterialesExtra || '0'} ${getCurrency(lang)}`}
-        </Text>
-        <Text style={[styles.infoValue, { color: '#40c4ff' }]}>
-          {`${t.light}: $${calculo.avanzados?.costoLuz || '0'} ${getCurrency(lang)}`}
-        </Text>
-        <Text style={[styles.infoValue, { color: '#69f0ae', fontWeight: 'bold' }]}>
-          {`${t.totalCost}: $${total} ${getCurrency(lang)}`}
-        </Text>
+        {materialesExpandido && <MaterialesUsados />}
         
-        {calculo.estadoVenta && (
-          <View style={styles.saleInfoContainer}>
-            <View style={styles.saleStatusContainer}>
-              {calculo.estadoVenta === 'vendido' ? (
-                <View style={styles.soldStatus}>
-                  <Ionicons name="checkmark-circle" size={16} color="#00e676" />
-                  <Text style={styles.soldStatusText}>{t.sold}</Text>
-                </View>
-              ) : (
-                <View style={styles.pendingStatus}>
-                  <Ionicons name="time-outline" size={16} color="#ff9800" />
-                  <Text style={styles.pendingStatusText}>{t.pending}</Text>
-                </View>
-              )}
-            </View>
-            
-            {calculo.estadoVenta === 'vendido' && (
-              <View style={styles.saleDetailsContainer}>
-                <Text style={styles.saleDetailText}>
-                  <Ionicons name="person-outline" size={14} color="#00e676" />
-                  {' '}{calculo.cliente}
-                </Text>
-                <Text style={styles.saleDetailText}>
-                  <Ionicons name="cash-outline" size={14} color="#ffd600" />
-                  {' '}${calculo.precioVenta} ${getCurrency(lang)}
-                </Text>
-                <Text style={styles.saleDetailText}>
-                  <Ionicons name="trending-up-outline" size={14} color="#00e676" />
-                  {' '}{t.profit}: ${calculo.ganancia} ${getCurrency(lang)}
-                </Text>
-                {calculo.categoriaVenta && (
-                  <Text style={styles.saleDetailText}>
-                    <Ionicons name="cube-outline" size={14} color="#ff9800" />
-                    {' '}{calculo.categoriaVenta}
-                  </Text>
-                )}
-                {calculo.fechaVenta && (
-                  <Text style={styles.saleDetailText}>
-                    <Ionicons name="calendar-outline" size={14} color="#40c4ff" />
-                    {' '}{new Date(calculo.fechaVenta).toLocaleDateString('es-MX')}
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-        )}
-
-        {!proyectoSeleccionado && (
-          <View style={styles.saleCheckboxContainer}>
-            <TouchableOpacity
-              style={styles.checkboxContainer}
-              onPress={() => {
-                if (calculo.estadoVenta === 'vendido') {
-                  handleMarcarComoPendiente(calculo.id);
-                } else {
-                  setMostrarPrecioInput(prev => ({ ...prev, [calculo.id]: true }));
-                }
-              }}
-            >
-              <View style={[styles.checkbox, calculo.estadoVenta === 'vendido' && styles.checkboxChecked]}>
-                {calculo.estadoVenta === 'vendido' && (
-                  <Ionicons name="checkmark" size={16} color="#222" />
-                )}
-              </View>
-              <Text style={styles.checkboxText}>{t.sold}</Text>
-            </TouchableOpacity>
-            
-            {mostrarPrecioInput[calculo.id] && (
-              <View style={styles.precioVentaContainer}>
-                <Text style={styles.precioVentaLabel}>{t.finalSalePrice}</Text>
-                <View style={styles.precioVentaInputRow}>
-                  <TextInput
-                    style={styles.precioVentaInput}
-                    value={precioVentaInput[calculo.id] || ''}
-                    onChangeText={(text) => setPrecioVentaInput(prev => ({ ...prev, [calculo.id]: text }))}
-                    placeholder="Ej: 150.00"
-                    placeholderTextColor="#666"
-                    keyboardType="numeric"
-                  />
-                  <TouchableOpacity
-                    style={styles.precioVentaButton}
-                    onPress={() => {
-                      const precio = precioVentaInput[calculo.id];
-                      if (precio && !isNaN(parseFloat(precio))) {
-                        marcarComoVendidoRapido(calculo, 'Categoría', 'Cliente', precio);
-                      }
-                    }}
-                  >
-                    <Text style={styles.precioVentaButtonText}>{t.confirm}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.precioVentaCancelButton}
-                    onPress={() => {
-                      setMostrarPrecioInput(prev => ({ ...prev, [calculo.id]: false }));
-                      setPrecioVentaInput(prev => ({ ...prev, [calculo.id]: '' }));
-                    }}
-                  >
-                    <Text style={styles.precioVentaCancelText}>{t.cancel}</Text>
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={styles.gananciaContainer}>
-                  <Text style={styles.gananciaLabel}>{t.profit}:</Text>
-                  <Text style={styles.gananciaValue}>
-                    ${(() => {
-                      const precio = parseFloat(precioVentaInput[calculo.id] || '0');
-                      const costoProduccion = parseFloat(calculo.costoTotal || '0');
-                      const ganancia = precio - costoProduccion;
-                      return ganancia.toFixed(2);
-                    })()} ${getCurrency(lang)}
-                  </Text>
-                </View>
-                
-                <View style={styles.costosInfoContainer}>
-                  <Text style={styles.costosInfoText}>
-                    <Text style={styles.costosInfoLabel}>{t.productionCost}</Text> ${calculo.costoTotal || '0.00'} ${getCurrency(lang)}
-                  </Text>
-                  {(() => {
-                    const precio = parseFloat(precioVentaInput[calculo.id] || '0');
-                    const costoProduccion = parseFloat(calculo.costoTotal || '0');
-                    const ganancia = precio - costoProduccion;
-                    const porcentajeGanancia = costoProduccion > 0 ? (ganancia / costoProduccion) * 100 : 0;
-                    
-                    return (
-                      <Text style={styles.costosInfoText}>
-                        <Text style={styles.costosInfoLabel}>{t.profitMargin}</Text> {porcentajeGanancia.toFixed(1)}%
-                      </Text>
-                    );
-                  })()}
-                </View>
-              </View>
-            )}
-            
-            {calculo.estadoVenta === 'vendido' && (
-              <View style={styles.additionalCheckboxesContainer}>
-                <View style={styles.chipsContainer}>
-                  <View style={styles.chipSection}>
-                    <Text style={styles.chipSectionLabel}>{t.category}:</Text>
-                    <View style={styles.chipsRow}>
-                      {categorias.map((categoria, index) => (
-                        <TouchableOpacity
-                          key={index}
-                          style={[
-                            styles.chip,
-                            calculo.categoriaVenta === categoria && styles.chipActive
-                          ]}
-                          onPress={() => {
-                            marcarComoVendidoRapido(calculo, categoria, calculo.cliente || 'Cliente', calculo.precioVenta);
-                          }}
-                        >
-                          <Ionicons
-                            name="folder-outline"
-                            size={12}
-                            color={calculo.categoriaVenta === categoria ? '#222' : '#00e676'}
-                          />
-                          <Text style={[
-                            styles.chipText,
-                            calculo.categoriaVenta === categoria && styles.chipTextActive
-                          ]}>
-                            {categoria}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                  
-                  <View style={styles.chipSection}>
-                    <Text style={styles.chipSectionLabel}>{t.client}:</Text>
-                    <View style={styles.chipsRow}>
-                      {clientes.map((cliente, index) => (
-                        <TouchableOpacity
-                          key={index}
-                          style={[
-                            styles.chip,
-                            calculo.cliente === cliente && styles.chipActive
-                          ]}
-                          onPress={() => {
-                            marcarComoVendidoRapido(calculo, calculo.categoriaVenta || 'Categoría', cliente, calculo.precioVenta);
-                          }}
-                        >
-                          <Ionicons
-                            name="person-outline"
-                            size={12}
-                            color={calculo.cliente === cliente ? '#222' : '#00e676'}
-                          />
-                          <Text style={[
-                            styles.chipText,
-                            calculo.cliente === cliente && styles.chipTextActive
-                          ]}>
-                            {cliente}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-                
-                {categoriaExpandidaPorProducto[calculo.id] && (
-                  <View style={styles.compactDropdown}>
-                    {categorias.map((categoria, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.compactDropdownItem}
-                        onPress={() => {
-                          marcarComoVendidoRapido(calculo, categoria, calculo.cliente || 'Cliente', calculo.precioVenta);
-                          setCategoriaExpandidaPorProducto(prev => ({
-                            ...prev,
-                            [calculo.id]: false
-                          }));
-                        }}
-                      >
-                        <Ionicons name="folder-outline" size={12} color="#00e676" />
-                        <Text style={styles.compactDropdownText} numberOfLines={1}>{categoria}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-                
-                {clienteExpandidoPorProducto[calculo.id] && (
-                  <View style={styles.compactDropdown}>
-                    {clientes.map((cliente, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.compactDropdownItem}
-                        onPress={() => {
-                          marcarComoVendidoRapido(calculo, calculo.categoriaVenta || 'Categoría', cliente, calculo.precioVenta);
-                          setClienteExpandidoPorProducto(prev => ({
-                            ...prev,
-                            [calculo.id]: false
-                          }));
-                        }}
-                      >
-                        <Ionicons name="person-outline" size={12} color="#00e676" />
-                        <Text style={styles.compactDropdownText} numberOfLines={1}>{cliente}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
-        )}
-
+        <Text style={[styles.infoValue, { color: '#00e676' }]}>{`${t.materials}: $${costoTotalMateriales.toFixed(2)} ${getCurrency(lang)}`}</Text>
+        <Text style={[styles.infoValue, { color: '#ffd600' }]}>{`${t.laborCost}: $${calculo.manoObra?.costoTotalManoObra || '0'} ${getCurrency(lang)}`}</Text>
+        <Text style={[styles.infoValue, { color: '#ff9100' }]}>{`${t.extraMaterials}: $${calculo.avanzados?.totalMaterialesExtra || '0'} ${getCurrency(lang)}`}</Text>
+        <Text style={[styles.infoValue, { color: '#40c4ff' }]}>{`${t.light}: $${calculo.avanzados?.costoLuz || '0'} ${getCurrency(lang)}`}</Text>
+        <Text style={[styles.infoValue, { color: '#69f0ae', fontWeight: 'bold' }]}>{`${t.totalCost}: $${total} ${getCurrency(lang)}`}</Text>
+        
         {calculo.mostrarFecha && calculo.fecha && (
           <Text style={{ color: '#a0a0a0', fontSize: 12, marginTop: 8, textAlign: 'right' }}>
             {t.creationDate}: {new Date(calculo.fecha).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}
@@ -1456,6 +1202,7 @@ const cargarProyectosYSueltos = async () => {
       </View>
     );
   };
+
 
 
   // Renderizar lista de proyectos

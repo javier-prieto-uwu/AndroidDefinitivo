@@ -452,7 +452,7 @@ const translations = {
     glass: "Vidrio",
     // Tipos de resina
     standard: "Estándar",
-    tough: "Tough (tipo ABS)",
+    tough: "Tough",
     flexibleResin: "Flexible",
     highTempResin: "Alta temperatura",
     dental: "Dental / Biocompatible",

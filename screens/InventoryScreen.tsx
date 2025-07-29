@@ -156,9 +156,9 @@ const InventoryScreen: React.FC = () => {
     { tipo: 'PP', subtipos: ['Normal'] },
     { tipo: 'Metal', subtipos: ['Normal'] },
   ];
-  const TIPOS_RESINA = [
+const TIPOS_RESINA = [
     'Estándar',
-    'Tough (tipo ABS)',
+    'Tough', // <-- Corregido
     'Flexible',
     'Alta temperatura',
     'Dental / Biocompatible',
@@ -166,7 +166,7 @@ const InventoryScreen: React.FC = () => {
     'Rápida',
     'Especiales',
   ];
-  const TIPOS_PINTURA = ['Acrílica', 'Esmalte', 'Spray', 'Óleo', 'Vinílica', 'Acuarela'];
+  const TIPOS_PINTURA = ['Acrílica', 'Esmalte', 'Spray', 'Óleo', 'Vinílica', 'Acuarela']; // Este estaba bien
   
   // MAPEO DE TRADUCCIÓN PARA UI
   const TIPOS_FILAMENTO_UI = {
@@ -182,9 +182,9 @@ const InventoryScreen: React.FC = () => {
     'PP': t.pp,
     'Metal': t.metal,
   };
-  const TIPOS_RESINA_UI = {
+const TIPOS_RESINA_UI = {
     'Estándar': t.standard,
-    'Tough (tipo ABS)': t.tough,
+    'Tough': t.tough, // <-- Corregido para coincidir con la nueva clave
     'Flexible': t.flexibleResin,
     'Alta temperatura': t.highTempResin,
     'Dental / Biocompatible': t.dental,

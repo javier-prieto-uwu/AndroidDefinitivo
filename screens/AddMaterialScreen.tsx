@@ -1,5 +1,5 @@
 import { Picker } from '@react-native-picker/picker';
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, query, where, doc } from 'firebase/firestore';
 import { auth, app } from '../api/firebase';
@@ -12,14 +12,14 @@ import translations from '../utils/locales';
 import { Ionicons } from '@expo/vector-icons';
 
 // Componente separado para el formulario de agregar
-const AddForm = React.memo(({ 
-  visible, 
-  onAdd, 
-  onCancel, 
-  placeholder, 
-  label, 
-  addLabel, 
-  cancelLabel 
+const AddForm = React.memo(({
+  visible,
+  onAdd,
+  onCancel,
+  placeholder,
+  label,
+  addLabel,
+  cancelLabel
 }: {
   visible: boolean;
   onAdd: (value: string) => void;
@@ -71,8 +71,8 @@ const AddForm = React.memo(({
         onSubmitEditing={handleAdd}
       />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
-        <TouchableOpacity 
-          onPress={handleCancel} 
+        <TouchableOpacity
+          onPress={handleCancel}
           style={[styles.pastilla, { backgroundColor: '#a0a0a0', flex: 1, marginRight: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}
         >
           <Ionicons name="close" size={18} color="#222" />
@@ -123,9 +123,11 @@ const TIPOS_FILAMENTO = [
   { tipo: 'PP', subtipos: ['Normal'] },
   { tipo: 'Metal', subtipos: ['Normal'] },
 ];
+
+// --- INICIO DE LA CORRECCIÓN 1 ---
 const TIPOS_RESINA = [
   'Estándar',
-  'Tough (tipo ABS)',
+  'Tough', // Corregido: se quita "(tipo ABS)"
   'Flexible',
   'Alta temperatura',
   'Dental / Biocompatible',
@@ -133,6 +135,8 @@ const TIPOS_RESINA = [
   'Rápida',
   'Especiales',
 ];
+// --- FIN DE LA CORRECCIÓN 1 ---
+
 const TIPOS_PINTURA = ['Acrílica', 'Esmalte', 'Spray', 'Óleo', 'Vinílica', 'Acuarela'];
 const COLORES = [
   { nombre: 'Negro', valor: '#222' },
@@ -211,9 +215,11 @@ const AddMaterialScreen: React.FC = () => {
     'Ignífugo': t.fireproof,
     'Vidrio': t.glass,
   };
+  
+  // --- INICIO DE LA CORRECCIÓN 2 ---
   const TIPOS_RESINA_UI = {
     'Estándar': t.standard,
-    'Tough (tipo ABS)': t.tough,
+    'Tough': t.tough, // Corregido para coincidir con la nueva clave
     'Flexible': t.flexibleResin,
     'Alta temperatura': t.highTempResin,
     'Dental / Biocompatible': t.dental,
@@ -221,6 +227,8 @@ const AddMaterialScreen: React.FC = () => {
     'Rápida': t.fast,
     'Especiales': t.special,
   };
+  // --- FIN DE LA CORRECCIÓN 2 ---
+
   const TIPOS_PINTURA_UI = {
     'Acrílica': t.acrylic,
     'Esmalte': t.enamel,
@@ -284,10 +292,10 @@ const AddMaterialScreen: React.FC = () => {
   const coloresPintura = colores.map(c => c.nombre); // Reutiliza los colores de filamento
 
   // Usar hook para categorías personalizadas
-  const { 
-    categorias: categoriasPersonalizadasData, 
+  const {
+    categorias: categoriasPersonalizadasData,
     agregarCategoria: agregarCategoriaHook,
-    eliminarCategoria: eliminarCategoriaHook 
+    eliminarCategoria: eliminarCategoriaHook
   } = useCategoriasPersonalizadas();
   // Las categorías personalizadas se mantienen igual
   const categoriasPersonalizadas = categoriasPersonalizadasData.map(cat => cat.nombre);
@@ -383,8 +391,8 @@ const AddMaterialScreen: React.FC = () => {
     });
     
     // Preparar material para guardar
-    let materialAGuardar: any = { 
-      ...materialParaGuardar, 
+    let materialAGuardar: any = {
+      ...materialParaGuardar,
       nombre: nombreGenerado,
       fechaRegistro: new Date().toISOString(),
       cantidadInicial: material.cantidad // Guardar el stock inicial (unidades)
@@ -464,11 +472,11 @@ const AddMaterialScreen: React.FC = () => {
     }
     
     try {
-      const nuevaCat = { 
-        ...nuevaCategoria, 
-        tieneTipo: usarTipo, 
-        tieneColor: usarColor, 
-        tieneMarca: usarMarca 
+      const nuevaCat = {
+        ...nuevaCategoria,
+        tieneTipo: usarTipo,
+        tieneColor: usarColor,
+        tieneMarca: usarMarca
       };
       await agregarCategoriaHook(nuevaCat);
       setMaterial({
@@ -646,7 +654,7 @@ const AddMaterialScreen: React.FC = () => {
     if (!user || !material.categoria || !nombreTipo) return;
     
     // Verificar si el tipo ya existe
-    const tiposExistentes = material.categoria === 'Filamento' 
+    const tiposExistentes = material.categoria === 'Filamento'
       ? [...tiposFilamento.map(t => t.tipo), ...tiposPersonalizados]
       : tiposPersonalizados;
     
@@ -694,16 +702,15 @@ const AddMaterialScreen: React.FC = () => {
     }
     setMaterial(prev => ({ ...prev, tipo: '', color: '' }));
   }, [material.categoria]);
-
   
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: '#0d0d0d' }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       enabled={true}
     >
-      <ScrollView 
+      <ScrollView
         style={styles.container}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="none"
@@ -754,7 +761,7 @@ const AddMaterialScreen: React.FC = () => {
 
         {/* Selector de categoría con pastilla + y X para eliminar */}
         <Text style={styles.label}>{t.category}</Text>
-        <View style={[styles.pastillasContainer, { alignItems: 'center' }]}> 
+        <View style={[styles.pastillasContainer, { alignItems: 'center' }]}>
           {CATEGORIAS_BASE.map((cat) => (
             <TouchableOpacity
               key={cat}
@@ -863,14 +870,14 @@ const AddMaterialScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-              <TouchableOpacity onPress={() => { setMostrarNuevaCategoria(false); setNuevaCategoria({ nombre: '', tipo: '', color: '', costo: '' }); setUsarTipo(false); setUsarColor(false); setUsarMarca(false); }} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}> 
+              <TouchableOpacity onPress={() => { setMostrarNuevaCategoria(false); setNuevaCategoria({ nombre: '', tipo: '', color: '', costo: '' }); setUsarTipo(false); setUsarColor(false); setUsarMarca(false); }} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}>
                 <Text style={{ color: '#222' }}>{t.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleAgregarCategoria}
                 style={[styles.pastilla, { backgroundColor: '#00e676' }, !nuevaCategoria.nombre && { opacity: 0.5 }]}
                 disabled={!nuevaCategoria.nombre}
-              > 
+              >
                 <Text style={{ color: '#222', fontWeight: 'bold' }}>{t.add}</Text>
               </TouchableOpacity>
             </View>
@@ -927,7 +934,7 @@ const AddMaterialScreen: React.FC = () => {
         {(CATEGORIAS_BASE.includes(material.categoria) || mostrarMarca) && (
           <>
             <Text style={styles.label}>{t.brand}</Text>
-            <View style={[styles.pastillasContainer, { alignItems: 'center' }]}> 
+            <View style={[styles.pastillasContainer, { alignItems: 'center' }]}>
               {/* Mensaje aclaratorio en modo eliminar */}
               {modoEliminarMarca && (
                 <Text style={{ color: '#e53935', marginBottom: 6, width: '100%' }}>
@@ -1031,7 +1038,7 @@ const AddMaterialScreen: React.FC = () => {
                   <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{t.confirmDeleteBrands}</Text>
                   <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>{t.thisActionCannotBeUndone}</Text>
                   <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-                    <TouchableOpacity onPress={() => setMostrarConfirmarEliminarMarca(false)} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}> 
+                    <TouchableOpacity onPress={() => setMostrarConfirmarEliminarMarca(false)} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}>
                       <Text style={{ color: '#222' }}>{t.cancel}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -1125,7 +1132,7 @@ const AddMaterialScreen: React.FC = () => {
                 <TouchableOpacity
                   style={[
                     styles.pastilla,
-                    { backgroundColor: '#222', borderColor: '#00e676', borderWidth: 2, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }
+                    { backgroundColor: '#222', borderColor: '#00e676', borderWidth: 2, marginBottom: 8 }
                   ]}
                   onPress={() => setMostrarNuevoTipo(true)}
                   disabled={modoEliminarTipo}
@@ -1159,21 +1166,21 @@ const AddMaterialScreen: React.FC = () => {
               )}
               {mostrarNuevoTipo && (
                 <AddForm
-                label={t.newType}
-                onAdd={async (value) => {
-                  if (value.trim()) {
-                    await agregarTipoPersonalizadoFirestore(value.trim());
-                    setMostrarNuevoTipo(false);
-                  }
-                }}
-                onCancel={() => setMostrarNuevoTipo(false)}
-                placeholder={`${t.nameOf}${material.categoria.toLowerCase()}`}
-                visible={mostrarNuevoTipo}
-                addLabel={t.add}
-                cancelLabel={t.cancel}
-              />
+                  label={t.newType}
+                  onAdd={async (value) => {
+                    if (value.trim()) {
+                      await agregarTipoPersonalizadoFirestore(value.trim());
+                      setMostrarNuevoTipo(false);
+                    }
+                  }}
+                  onCancel={() => setMostrarNuevoTipo(false)}
+                  placeholder={`${t.nameOf}${material.categoria.toLowerCase()}`}
+                  visible={mostrarNuevoTipo}
+                  addLabel={t.add}
+                  cancelLabel={t.cancel}
+                />
               )}
-              {/* Botón Borrar y confirmación para tipos personalizados */}
+              {/* Botón Borrar y confirmación */}
               {modoEliminarTipo && tiposSeleccionados.length > 0 && (
                 <TouchableOpacity
                   style={{ backgroundColor: '#e53935', borderRadius: 10, padding: 10, alignItems: 'center', marginBottom: 8 }}
@@ -1182,14 +1189,14 @@ const AddMaterialScreen: React.FC = () => {
                   <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t.deleteSelected} ({tiposSeleccionados.length})</Text>
                 </TouchableOpacity>
               )}
-              {/* Modal de confirmación para eliminar tipos personalizados */}
+              {/* Modal de confirmación para eliminar tipos */}
               <Modal visible={mostrarConfirmarEliminarTipo} transparent animationType="fade">
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
                   <View style={{ backgroundColor: '#181818', borderRadius: 16, padding: 24, width: '85%', maxWidth: 350, borderColor: '#e53935', borderWidth: 2 }}>
                     <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{t.confirmDeleteTypes}</Text>
                     <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>{t.thisActionCannotBeUndone}</Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-                      <TouchableOpacity onPress={() => setMostrarConfirmarEliminarTipo(false)} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}> 
+                      <TouchableOpacity onPress={() => setMostrarConfirmarEliminarTipo(false)} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}>
                         <Text style={{ color: '#222' }}>{t.cancel}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -1488,7 +1495,7 @@ const AddMaterialScreen: React.FC = () => {
                         <Text style={{ color: '#e53935', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{t.confirmDeleteTypes}</Text>
                         <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>{t.thisActionCannotBeUndone}</Text>
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-                          <TouchableOpacity onPress={() => setMostrarConfirmarEliminarTipo(false)} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}> 
+                          <TouchableOpacity onPress={() => setMostrarConfirmarEliminarTipo(false)} style={[styles.pastilla, { backgroundColor: '#a0a0a0' }]}>
                             <Text style={{ color: '#222' }}>{t.cancel}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity

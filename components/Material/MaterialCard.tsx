@@ -45,11 +45,10 @@ const MaterialCard: React.FC<MaterialCardProps> = ({ material, isSelected, onPre
     return limpiarPrecio(precio || '0');
   };
 
-  // Esta función ahora solo muestra los gramos o ml, como querías.
   const getCantidadRestanteDisplay = () => {
     const cantidad = material.cantidadRestante || material.cantidad || '0';
     const categoria = material.categoria;
-    let unidad = 'g'; // por defecto
+    let unidad = 'g';
     if (categoria === 'Pintura') unidad = 'ml';
     if (categoria === 'Aros de llavero') unidad = lang === 'en' ? ' units' : ' unidades';
     return `${cantidad}${unidad}`;
@@ -62,21 +61,21 @@ const MaterialCard: React.FC<MaterialCardProps> = ({ material, isSelected, onPre
     >
       <View style={[styles.colorIndicator, { backgroundColor: material.color || '#00e676' }]} />
       <View style={styles.content}>
-        <Text style={[styles.nombre, isSelected && styles.nombreSelected]} numberOfLines={1} ellipsizeMode="tail">
+        <Text style={[styles.nombre, isSelected && styles.nombreSelected]} numberOfLines={2} ellipsizeMode="tail">
           {getNombreTraducido(material.nombre)}
         </Text>
-        {material.subtipo && (material.categoria === 'Filamento') && (
+        {material.subtipo && (material.categoria === 'Filamento' || material.categoria === t.filament) && (
           <Text style={[styles.subtipo, isSelected && styles.textSelected]} numberOfLines={1} ellipsizeMode="tail">
             {getSubtipoTraducido(material.subtipo)}
           </Text>
         )}
         <View style={styles.infoRow}>
           <Text style={[styles.label, isSelected && styles.textSelected]}>
-            {lang === 'en' ? 'Remaining: ' : 'Restante: '}{'\n'}
+            {t.remaining}{'\n'}
             <Text style={[styles.value, isSelected && styles.valueSelected]}>{getCantidadRestanteDisplay()}</Text>
           </Text>
           <Text style={[styles.labelPrecio, isSelected && styles.textSelected]}>
-            {lang === 'en' ? 'Price: ' : 'Precio: '}{'\n'}
+            {t.price}{'\n'}
             <Text style={[styles.valuePrecio, isSelected && styles.valueSelected]}>${getPrecioDisplay()}</Text>
           </Text>
         </View>
@@ -86,20 +85,92 @@ const MaterialCard: React.FC<MaterialCardProps> = ({ material, isSelected, onPre
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#222', borderColor: '#333', borderWidth: 2, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, marginHorizontal: 6, marginVertical: 4, minHeight: 80, maxWidth: '48%', },
-  selected: { backgroundColor: '#00e676', borderColor: '#00e676', },
-  valueSelected:{ color: '#222', },
-  colorIndicator: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: '#333', marginRight: 10, marginTop: 2, },
-  content: { flex: 1, flexShrink: 1, justifyContent: 'space-between', },
-  nombre: { color: '#fff', fontWeight: 'bold', fontSize: 13, flexWrap: 'wrap', marginBottom: 3, lineHeight: 16, },
-  nombreSelected: { color: '#222', fontWeight: 'bold', },
-  subtipo: { color: '#a0a0a0', fontSize: 11, marginBottom: 4, lineHeight: 14, },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 2, },
-  label: { color: '#a0a0a0', fontSize: 9, fontWeight: '500', marginRight: 2, },
-  value: { color: '#00e676', fontSize: 10, fontWeight: '700', },
-  labelPrecio: { color: '#a0a0a0', fontSize: 9, fontWeight: '500', marginRight: 2, textAlign: 'right', },
-  valuePrecio: { color: '#ffd600', fontSize: 10, fontWeight: '700', },
-  textSelected: { color: '#333', },
+  // --- INICIO DE CORRECCIÓN DE ESTILOS ---
+  container: {
+    flex: 1, // Permite que la tarjeta se expanda para llenar su contenedor
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#222',
+    borderColor: '#333',
+    borderWidth: 2,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginHorizontal: 4,
+    marginVertical: 4,
+    minHeight: 80,
+    // Se elimina maxWidth para que sea flexible y se adapte al contenedor padre
+  },
+  // --- FIN DE CORRECCIÓN DE ESTILOS ---
+  selected: {
+    backgroundColor: '#00e676',
+    borderColor: '#00e676',
+  },
+  colorIndicator: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#333',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  content: {
+    flex: 1,
+    flexShrink: 1,
+    justifyContent: 'space-between',
+    minHeight: 50, // Asegura un alto mínimo para alinear el contenido
+  },
+  nombre: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 13,
+    marginBottom: 2,
+    lineHeight: 16,
+  },
+  nombreSelected: {
+    color: '#222',
+  },
+  subtipo: {
+    color: '#a0a0a0',
+    fontSize: 11,
+    marginBottom: 4,
+    lineHeight: 14,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: 'auto',
+    paddingTop: 4,
+  },
+  label: {
+    color: '#a0a0a0',
+    fontSize: 9,
+    fontWeight: '500',
+  },
+  value: {
+    color: '#00e676',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  labelPrecio: {
+    color: '#a0a0a0',
+    fontSize: 9,
+    fontWeight: '500',
+    textAlign: 'right',
+  },
+  valuePrecio: {
+    color: '#ffd600',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  textSelected: {
+    color: '#333',
+  },
+  valueSelected: {
+    color: '#222',
+  },
 });
 
 export default MaterialCard;

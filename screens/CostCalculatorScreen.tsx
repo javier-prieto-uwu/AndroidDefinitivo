@@ -634,12 +634,28 @@ const getInfoMaterial = (material: any) => {
     );
   };
 
-  const agruparMaterialesPorTipo = () => {
-    const matsPorTipo: { [tipo: string]: any[] } = {};
+const agruparMaterialesPorTipo = () => {
+    const matsPorTipo: { [key: string]: any[] } = {};
     materialesGuardados.forEach(mat => {
-      const tipo = mat.tipo || 'Sin tipo';
-      if (!matsPorTipo[tipo]) matsPorTipo[tipo] = [];
-      matsPorTipo[tipo].push(mat);
+      // Si hay un 'tipo', lo usamos para agrupar.
+      // Si no hay 'tipo', usamos la 'categoría' como grupo.
+      let grupo = mat.tipo || mat.categoria || t.uncategorized;
+
+      // --- INICIO DE LA CORRECCIÓN CON IF ---
+      // Si estamos en inglés y el grupo es una de las categorías base, la traducimos.
+      if (lang === 'en') {
+        if (grupo === 'Pintura') {
+          grupo = t.paint;
+        } else if (grupo === 'Aros de llavero') {
+          grupo = t.keychainRings;
+        }
+      }
+      // --- FIN DE LA CORRECCIÓN ---
+      
+      if (!matsPorTipo[grupo]) {
+        matsPorTipo[grupo] = [];
+      }
+      matsPorTipo[grupo].push(mat);
     });
     return matsPorTipo;
   };

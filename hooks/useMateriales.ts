@@ -12,6 +12,7 @@ interface Material {
   color?: string;
   precio?: string;
   precioBobina?: string;
+  pesoBobina?: string; // <-- AÑADE ESTA LÍNEA
   cantidad?: string;
   cantidadRestante?: string;
   peso?: string;
