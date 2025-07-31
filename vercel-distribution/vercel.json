@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "3d-material-app",
+  "builds": [
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/download",
+      "dest": "/index.html"
+    }
+  ],
+  "functions": {
+    "index.html": {
+      "maxDuration": 10
+    }
+  }
+}

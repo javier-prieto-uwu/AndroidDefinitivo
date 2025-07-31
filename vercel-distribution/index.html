@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Material - Descarga la App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0d0d 0%, #1a1a1a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            background: #333;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: #00ff88;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #cccccc;
+            margin-bottom: 40px;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            color: #000;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
+        }
+        
+        .info {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+        
+        .info h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+        
+        .info ul {
+            text-align: left;
+            list-style: none;
+        }
+        
+        .info li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .info li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #00ff88;
+            font-weight: bold;
+        }
+        
+        .version {
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+        
+        .warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">3D</div>
+        <h1>3D Material</h1>
+        <p class="subtitle">Gestiona tu inventario de materiales de impresión 3D</p>
+        
+        <a href="#" class="download-btn" id="downloadBtn">
+            📱 Descargar APK (v1.0.0)
+        </a>
+        
+        <div class="warning">
+            <strong>⚠️ Importante:</strong> Esta aplicación no está en Google Play Store. 
+            Debes habilitar "Instalar aplicaciones de fuentes desconocidas" en tu dispositivo Android.
+        </div>
+        
+        <div class="info">
+            <h3>Características de la App</h3>
+            <ul>
+                <li>Gestión completa de inventario de materiales</li>
+                <li>Calculadora de costos de impresión</li>
+                <li>Seguimiento de filamentos, resinas y pinturas</li>
+                <li>Sistema de ventas integrado</li>
+                <li>Interfaz moderna y fácil de usar</li>
+                <li>Sincronización en la nube con Firebase</li>
+            </ul>
+        </div>
+        
+        <div class="info">
+            <h3>Requisitos del Sistema</h3>
+            <ul>
+                <li>Android 6.0 (API nivel 23) o superior</li>
+                <li>Conexión a internet para sincronización</li>
+                <li>Aproximadamente 70 MB de espacio libre</li>
+            </ul>
+        </div>
+        
+        <p class="version">
+            Versión 1.0.0 • Tamaño: ~70 MB • Última actualización: <span id="lastUpdate"></span>
+        </p>
+    </div>
+    
+    <script>
+        // Actualizar fecha automáticamente
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('es-ES');
+        
+        // Manejar descarga (aquí pondrás el enlace real del APK)
+        document.getElementById('downloadBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            // Aquí irá el enlace directo al APK
+            alert('Próximamente: El enlace de descarga se activará cuando subas el APK');
+        });
+    </script>
+</body>
+</html>

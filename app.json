@@ -4,24 +4,22 @@
     "slug": "dmaterial-manager",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo3dmaterial.png",
+    "icon": "./assets/logodefinitivoapp.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/logo3dmaterial.png",
+      "image": "./assets/logodefinitivoapp.png",
       "resizeMode": "contain",
       "backgroundColor": "#0d0d0d"
     },
     "ios": {
-      "supportsTablet": true,
-      "statusBarStyle": "light",
-      "statusBarHidden": false
+      "supportsTablet": true
     },
     "android": {
       "package": "com.dmaterial.manager",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo3dmaterial.png",
+        "foregroundImage": "./assets/logodefinitivoapp.png",
         "backgroundColor": "#0d0d0d"
       },
       "edgeToEdgeEnabled": true
